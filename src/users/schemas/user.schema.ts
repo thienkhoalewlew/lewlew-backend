@@ -6,16 +6,22 @@ export type UserDocument = User & Document;
 @Schema({ timestamps: true })
 export class User {
   @Prop()
+  username: string;
+
+  @Prop()
   fullName: string;
 
   @Prop({ required: true, unique: true })
   email: string;
 
   @Prop({ required: true })
-  password: string;
+  password?: string;
 
   @Prop()
   avatar: string;
+
+  @Prop({ required: false })
+  bio?: string;
 
   @Prop({
     type: {
@@ -68,3 +74,17 @@ export const UserSchema = SchemaFactory.createForClass(User);
 // Thêm indexes
 UserSchema.index({ email: 1 });
 UserSchema.index({ 'location.coordinates': '2dsphere' });
+
+UserSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    delete ret.password;
+    return ret;
+  },
+});
+
+UserSchema.set('toObject', {
+  transform: (doc, ret) => {
+    delete ret.password;
+    return ret;
+  },
+});

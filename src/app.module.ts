@@ -16,9 +16,13 @@ import { NotificationsModule } from './notifications/notifications.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: '.env',
     }),
-    MongooseModule.forRoot('mongodb://localhost:27017/lewlew-db', {
+    MongooseModule.forRoot('mongodb://127.0.0.1:27017/lewlew-db', {
       // Các tùy chọn kết nối
+      serverSelectionTimeoutMS: 5000, // Timeout sau 5 giây nếu không kết nối được
+      retryWrites: true,
+      connectTimeoutMS: 10000, // Tăng thời gian timeout kết nối
     }),
     UsersModule,
     FriendrelationsModule,

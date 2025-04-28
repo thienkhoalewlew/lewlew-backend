@@ -7,8 +7,19 @@ import { Logger } from '@nestjs/common';
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
-  // Cấu hình CORS
-  app.enableCors();
+  
+  // Cấu hình global prefix để hỗ trợ cả mobile và web
+  app.setGlobalPrefix('api', {
+    exclude: ['health'], // Loại trừ endpoint /health để có thể truy cập trực tiếp
+  });
+  
+  // Cấu hình CORS chi tiết hơn để cho phép kết nối từ Expo và các nguồn khác
+  app.enableCors({
+    origin: true, // Cho phép tất cả các nguồn
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+    allowedHeaders: 'Content-Type, Accept, Authorization',
+  });
   // Cấu hình validation
   app.useGlobalPipes(
     new ValidationPipe({
