@@ -24,7 +24,7 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Patch('avatar')
+  @Patch('update_avatar')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update user avatar' })
   @ApiResponse({ status: 200, description: 'Avatar updated successfully' })
