@@ -1,5 +1,6 @@
+// filepath: d:\DATN\lewlew-backend\src\app.module.ts
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
@@ -18,11 +19,15 @@ import { NotificationsModule } from './notifications/notifications.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
-    MongooseModule.forRoot('mongodb://127.0.0.1:27017/lewlew-db', {
-      // Các tùy chọn kết nối
-      serverSelectionTimeoutMS: 5000, // Timeout sau 5 giây nếu không kết nối được
-      retryWrites: true,
-      connectTimeoutMS: 10000, // Tăng thời gian timeout kết nối
+    MongooseModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => ({
+        uri: configService.get<string>('MONGODB_URI'),
+        serverSelectionTimeoutMS: 5000,
+        retryWrites: true,
+        connectTimeoutMS: 10000,
+      }),
     }),
     UsersModule,
     FriendrelationsModule,
