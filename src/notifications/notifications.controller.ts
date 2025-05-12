@@ -14,8 +14,8 @@ export class NotificationsController {
     @UseGuards(JwtAuthGuard)
     @Post()
     @ApiBearerAuth()
-    @ApiOperation({ summary: 'Tạo thông báo mới' })
-    @ApiResponse({ status: 201, description: 'Thông báo đã được tạo' })
+    @ApiOperation({ summary: 'Create new notification' })
+    @ApiResponse({ status: 201, description: 'Notification has been created' })
     async createNotification(@Body() dto: CreateNotificationDto) {
         return this.notificationsService.createNotification(dto);
     }
