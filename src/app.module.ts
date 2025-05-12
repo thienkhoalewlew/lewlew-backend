@@ -38,6 +38,6 @@ import { NotificationsModule } from './notifications/notifications.module';
     NotificationsModule,
   ],
   controllers: [AppController],
-  providers: [AppService, UploadsService],
+  providers: [AppService],
 })
 export class AppModule {}
