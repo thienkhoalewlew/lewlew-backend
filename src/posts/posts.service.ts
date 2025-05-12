@@ -27,6 +27,12 @@ export class PostsService {
     return newPost.save();
   }
 
+async findByUser(userId: string): Promise<Post[]> {
+  return this.postModel.find({ user: userId, expiresAt: { $gt: new Date() } })
+    .sort({ createdAt: -1 })
+    .exec();
+}
+
   async findNearby(lat: number, lng: number, radius: number = 10): Promise<Post[]> {
     // Convert radius from km to radians (Earth radius is approximately 6371 km)
     const radiusInRadians = radius / 6371;
@@ -97,5 +103,18 @@ export class PostsService {
     post.likeCount = Math.max(0, (post.likeCount || 1) - 1);
     
     return post.save();
+  }
+
+  async deletePost(postId: string, userId: string): Promise<void> {
+  const post = await this.postModel.findById(postId);
+  if (!post) {
+    throw new NotFoundException('Post not found');
+  }
+
+  if (post.user.toString() !== userId) {
+    throw new BadRequestException('You are not authorized to delete this post');
+  }
+
+  await post.deleteOne();
   }
 }

@@ -45,6 +45,15 @@ export class PostsController {
     return this.postsService.create(createPostDto, req.user);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('my-posts')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get posts of the current logged-in user' })
+  @ApiResponse({ status: 200, description: 'List of user posts' })
+  async getMyPosts(@Req() req) {
+    return this.postsService.findByUser(req.user.userId);
+  }
+
   @Get('nearby')
   @ApiOperation({ summary: 'Get posts near current location' })
   @ApiQuery({ name: 'lat', description: 'Latitude', type: Number, example: 40.7484 })
@@ -168,5 +177,17 @@ export class PostsController {
   @ApiResponse({ status: 404, description: 'Post not found' })
   unlikePost(@Param('id') id: string, @Req() req) {
     return this.postsService.unlike(id, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a post' })
+  @ApiParam({ name: 'id', description: 'Post ID', type: String })
+  @ApiResponse({ status: 200, description: 'Post deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Post not found' })
+  async deletePost(@Param('id') id: string, @Req() req) {
+    await this.postsService.deletePost(id, req.user.userId);
+    return { message: 'Post deleted successfully' };
   }
 }

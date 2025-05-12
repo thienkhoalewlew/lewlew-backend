@@ -3,7 +3,11 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@ne
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UserProfileDto } from './dto/user-profile.dto';
-import { UpdateAvatarDto } from './dto/update-avatar.dto';
+import { UpdateAvatarDto } from './dto/update-avatar.dto'
+import { UpdateEmailDto } from './dto/update-email.dto';
+import { UpdateUsernameDto } from './dto/update-username.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
+import { UpdateSettingsDto } from './dto/update-settings.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -31,5 +35,43 @@ export class UsersController {
   async updateAvatar(@Req() req, @Body() dto: UpdateAvatarDto) {
     await this.userService.updateAvatar(req.user.userId, dto.avatar);
     return { message: 'Avatar updated successfully' };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('update_password')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update user password' })
+  @ApiResponse({ status: 200, description: 'Password updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid current password' })
+  async updatePassword(@Req() req, @Body() dto: UpdatePasswordDto) {
+    await this.userService.updatePassword(req.user.userId, dto);
+    return { message: 'Password updated successfully' };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('update_username')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update username' })
+  async updateUsername(@Req() req, @Body() dto: UpdateUsernameDto) {
+    await this.userService.updateUsername(req.user.userId, dto);
+    return { message: 'Username updated successfully' };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('update_email')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update email' })
+  async updateEmail(@Req() req, @Body() dto: UpdateEmailDto) {
+    await this.userService.updateEmail(req.user.userId, dto);
+    return { message: 'Email updated successfully' };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('update_settings')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update user settings' })
+  async updateSettings(@Req() req, @Body() dto: UpdateSettingsDto) {
+    await this.userService.updateSettings(req.user.userId, dto);
+    return { message: 'Settings updated successfully' };
   }
 }
