@@ -10,7 +10,7 @@ export class Post {
   user: User;
 
   @Prop({ required: true })
-  imageUrlUrl: string;
+  imageUrl: string;
 
   @Prop()
   caption: string;

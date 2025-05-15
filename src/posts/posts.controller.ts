@@ -44,7 +44,6 @@ export class PostsController {
   createPost(@Body() createPostDto: CreatePostDto, @Req() req) {
     return this.postsService.create(createPostDto, req.user);
   }
-
   @UseGuards(JwtAuthGuard)
   @Get('my-posts')
   @ApiBearerAuth()
@@ -52,6 +51,44 @@ export class PostsController {
   @ApiResponse({ status: 200, description: 'List of user posts' })
   async getMyPosts(@Req() req) {
     return this.postsService.findByUser(req.user.userId);
+  }
+  
+  @UseGuards(JwtAuthGuard)
+  @Get('friends-posts')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get posts from friends of the current logged-in user' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'List of posts from friends',
+    schema: {
+      example: [
+        {
+          id: '6571a2d3e87cf87df032a9b3',
+          user: {
+            id: '6571a2d3e87cf87df032a9b4',
+            fullName: 'Jane Doe',
+            email: 'jane.doe@example.com',
+            avatar: 'https://example.com/avatar2.jpg'
+          },
+          imageUrl: 'https://example.com/images/post456.jpg',
+          caption: 'Dinner with friends!',
+          location: {
+            type: 'Point',
+            coordinates: [-73.9902, 40.7435],
+            placeName: 'ABC Restaurant, New York'
+          },
+          likes: ['6571a2d3e87cf87df032a9b1'],
+          likeCount: 1,
+          commentCount: 2,
+          expiresAt: '2025-04-12T02:51:56+07:00',
+          createdAt: '2025-04-11T02:51:56+07:00'
+        }
+      ]
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized access' })
+  async getFriendsPostsOfCurrentUser(@Req() req) {
+    return this.postsService.findByFriends(req.user.userId);
   }
 
   @Get('nearby')

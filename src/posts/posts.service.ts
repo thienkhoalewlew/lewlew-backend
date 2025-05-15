@@ -10,14 +10,14 @@ export class PostsService {
   constructor(
     @InjectModel(Post.name) private postModel: Model<PostDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-  ) {}
-
-  async create(createPostDto: CreatePostDto, user: UserDocument): Promise<Post> {
+  ) {}  async create(createPostDto: CreatePostDto, user: any): Promise<Post> {
     const expiresAt = createPostDto.expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000); // Default 24 hours
     
     const newPost = new this.postModel({
-      ...createPostDto,
-      user: user._id as any,
+      imageUrl: createPostDto.image, // Ánh xạ từ image trong DTO sang imageUrl trong schema
+      caption: createPostDto.caption,
+      location: createPostDto.location,
+      user: user.userId, // Sử dụng userId từ JWT payload thay vì _id
       expiresAt,
       createdAt: new Date(),
       likeCount: 0,
@@ -49,13 +49,19 @@ async findByUser(userId: string): Promise<Post[]> {
     .sort({ createdAt: -1 })
     .exec();
   }
-
   async findByFriends(userId: string): Promise<Post[]> {
+    // Tìm người dùng qua ID
     const user = await this.userModel.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
     
+    // Kiểm tra nếu không có bạn bè
+    if (!user.friends || user.friends.length === 0) {
+      return [];
+    }
+    
+    // Lấy tất cả bài viết từ danh sách bạn bè (chưa hết hạn)
     return this.postModel.find({
       user: { $in: user.friends },
       expiresAt: { $gt: new Date() }

@@ -1,24 +1,68 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class UserProfileDto {
-  @ApiProperty({ example: '6571a2d3e87cf87df032a9b1' })
+export class CurrentUserProfileDto {
+  @ApiProperty({
+    example: '1234567890abcdef',
+  })
   _id: string;
 
-  @ApiProperty({ example: 'John Doe' })
-  fullName: string;
+  @ApiProperty({
+    example: 'john_doe',
+  })
+  fullname: string;
 
-  @ApiProperty({ example: 'john.doe@example.com' })
+  @ApiProperty({
+    example: 'https://example.com/profile.jpg',
+  })
+  avatar: string;
+
+  @ApiProperty(({
+    example: 'example@example.com',
+  }))
   email: string;
 
-  @ApiProperty({ example: 'https://example.com/avatar.jpg', required: false })
-  profileImage?: string;
-
-  @ApiProperty({ example: 'Hello, I am John!', required: false })
+  @ApiProperty({
+    example: 'Hello, I am John Doe!',
+    required: false,
+  })
   bio?: string;
 
-  @ApiProperty({ example: 5 })
-  postCount: number;
-
-  @ApiProperty({ example: 12 })
+  @ApiProperty({
+    example: 12
+  })
   friendCount: number;
+}
+
+export class OtherUserProfileDto {
+  @ApiProperty({
+    example: '1234567890abcdef',
+  })
+  _id: string;
+
+  @ApiProperty({
+    example: 'john_doe',
+  })
+  fullname: string;
+
+  @ApiProperty({
+    example: 'https://example.com/profile.jpg',
+  })
+  avatar: string;
+
+  @ApiProperty({
+    example: 'Hello, I am John Doe!',
+    required: false,
+  })
+  bio?: string;
+
+  @ApiProperty({
+    example: 12,
+  })
+  friendCount: number;
+
+  @ApiProperty({
+    example: 'none',
+    required: false,
+  })
+  friendStatus?: 'none' | 'pending' | 'accept' | 'reject';
 }

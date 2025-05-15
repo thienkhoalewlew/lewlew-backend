@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { UserDocument } from './schemas/user.schema';
+import { FriendRelation } from '../friendrelations/schemas/friendrelation.schema';
 import { Model, set } from 'mongoose';
 import { User } from './schemas/user.schema';
 import { InjectModel } from '@nestjs/mongoose';
-import { UserProfileDto } from './dto/user-profile.dto';
+import { CurrentUserProfileDto, OtherUserProfileDto } from './dto/user-profile.dto';
 import { UpdateEmailDto } from './dto/update-email.dto';
 import { UpdateUsernameDto } from './dto/update-username.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
@@ -12,7 +13,10 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
+  constructor(
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(FriendRelation.name) private friendRelationModel: Model<FriendRelation>,
+  ) {}
 
   async findByEmail(email: string): Promise<UserDocument | null> {
     return this.userModel.findOne({ email });
@@ -26,33 +30,65 @@ export class UsersService {
     return user;
   }
 
-  async getProfile(userId: string): Promise<UserProfileDto> {
-    const user = await this.userModel.findById(userId).lean();
+  async getCurrentUserProfile(userId: string): Promise<CurrentUserProfileDto> {
+    const user = await this.userModel.findById(userId).exec();
     if (!user) {
-      throw new NotFoundException(`Cannot find user with id: ${userId}`);
+      throw new NotFoundException(`Cant find user with id: ${userId}`);
     }
+    
     return {
-      _id: user._id.toString(),
-      fullName: user.fullName,
+      _id: (user._id as unknown as string),
+      fullname: user.fullName,
+      avatar: user.avatar,
       email: user.email,
-      profileImage: user.avatar,
       bio: user.bio,
-      postCount: 0,
-      friendCount: user.friends ? user.friends.length : 0,
+      friendCount: user.friends.length || 0,
+    }
+  }
+
+  async getOtherUserProfile(userId: string, targetUserId: string): Promise<OtherUserProfileDto> {
+    const user = await this.userModel.findById(targetUserId).exec();
+    if (!user) {
+      throw new NotFoundException(`Cant find user with id: ${targetUserId}`);
+    }
+
+    const friendRelation = await this.friendRelationModel.findOne({
+      $or: [
+        { user1: userId, user2: targetUserId },
+        { user1: targetUserId, user2: userId },
+      ],
+    }).exec();
+
+    let friendStatus: 'none' | 'pending' | 'accept' | 'reject' = 'none';
+    if (friendRelation && friendRelation.status) {
+      // Kiểm tra và ép kiểu giá trị của friendRelation.status
+      if (['none', 'pending', 'accepted', 'reject'].includes(friendRelation.status)) {
+        friendStatus = friendRelation.status as 'none' | 'pending' | 'accept' | 'reject';
+      }
+    }
+
+    return {
+      _id: (user._id as unknown as string),
+      fullname: user.fullName,
+      avatar: user.avatar,
+      bio: user.bio,
+      friendCount: user.friends?.length || 0,
+      friendStatus: friendStatus,
     };
   }
 
-  async updateLastAcitve(userId: string): Promise<void> {
+  async updateLastActive(userId: string): Promise<void> {
     await this.userModel
       .findByIdAndUpdate(userId, { lastActive: new Date() })
       .exec();
   }
 
   async updateAvatar(userId: string, avatar: string): Promise<void> {
-    const user = await this.userModel.findById(userId);
+    const user = await this.userModel.findById(userId).exec();
     if (!user) {
       throw new NotFoundException(`Cannot find user with id: ${userId}`);
     }
+
     user.avatar = avatar;
     await user.save();
   }
@@ -63,7 +99,7 @@ export class UsersService {
       throw new NotFoundException(`Cannot find user with id: ${userId}`);
     }
 
-    if(!user.password) {
+    if (!user.password) {
       throw new Error('User does not have a password set');
     }
 
@@ -76,7 +112,7 @@ export class UsersService {
     await user.save();
   }
 
-  async updateEmail(userId:string, dto: UpdateEmailDto): Promise<void> {
+  async updateEmail(userId: string, dto: UpdateEmailDto): Promise<void> {
     const user = await this.userModel.findById(userId).exec();
     if (!user) {
       throw new NotFoundException(`Cannot find user with id: ${userId}`);
@@ -86,7 +122,7 @@ export class UsersService {
     await user.save();
   }
 
-  async updateUsername(userId:string, dto: UpdateUsernameDto): Promise<void> {
+  async updateUsername(userId: string, dto: UpdateUsernameDto): Promise<void> {
     const user = await this.userModel.findById(userId).exec();
     if (!user) {
       throw new NotFoundException(`Cannot find user with id: ${userId}`);
@@ -96,7 +132,7 @@ export class UsersService {
     await user.save();
   }
 
-  async updateSettings(userId:string, settings: UpdateSettingsDto): Promise<void> {
+  async updateSettings(userId: string, settings: UpdateSettingsDto): Promise<void> {
     const user = await this.userModel.findById(userId).exec();
     if (!user) {
       throw new NotFoundException(`Cannot find user with id: ${userId}`);
