@@ -5,12 +5,14 @@ import { FriendRelation, FriendRelationDocument } from './schemas/friendrelation
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { SearchUsersDto } from './dto/search-users.dto';
 import { FriendRequestResponse } from './dto/respond-friend-request.dto';
+import { NotificationHelperService } from '../notifications/notification-helper.service';
 
 @Injectable()
 export class FriendrelationsService {
   constructor(
     @InjectModel(FriendRelation.name) private friendRelationModel: Model<FriendRelationDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    private readonly notificationHelper: NotificationHelperService,
   ) {}
 
   /**
@@ -174,6 +176,8 @@ export class FriendrelationsService {
         friendRequests: { from: senderId, createdAt: new Date() },
       },
     }).exec();
+    
+    await this.notificationHelper.createFriendRequestNotification(senderId, receiverId);
 
     return { message: 'Friend request sent', friendRelation };
   }
@@ -211,12 +215,14 @@ export class FriendrelationsService {
       // Thêm vào danh sách bạn bè của cả hai người
       await this.userModel.findByIdAndUpdate(requesterId, {
         $addToSet: { friends: receiverId },
-      }).exec();
-
-      await this.userModel.findByIdAndUpdate(receiverId, {
+      }).exec();      await this.userModel.findByIdAndUpdate(receiverId, {
         $addToSet: { friends: requesterId },
         $pull: { friendRequests: { from: requesterId } },
       }).exec();
+
+      // Sửa thứ tự tham số: người chấp nhận (receiverId/userId) là người gửi thông báo
+      // và người gửi lời mời (requesterId) là người nhận thông báo
+      await this.notificationHelper.createFriendAcceptNotification(receiverId, requesterId);
 
       return { message: 'Friend request accepted' };
     } else {

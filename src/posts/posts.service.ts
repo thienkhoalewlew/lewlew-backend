@@ -4,12 +4,14 @@ import { Model } from 'mongoose';
 import { Post, PostDocument } from './schemas/post.schema';
 import { CreatePostDto } from './dto/create-post.dto';
 import { User, UserDocument } from '../users/schemas/user.schema';
+import { NotificationHelperService } from '../notifications/notification-helper.service';
 
 @Injectable()
 export class PostsService {
   constructor(
     @InjectModel(Post.name) private postModel: Model<PostDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    private readonly notificationHelper: NotificationHelperService,
   ) {}  async create(createPostDto: CreatePostDto, user: any): Promise<Post> {
     const expiresAt = createPostDto.expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000); // Default 24 hours
     
@@ -87,8 +89,20 @@ async findByUser(userId: string): Promise<Post[]> {
     // Add user to likes array and increment likeCount
     post.likes = [...(post.likes || []), user._id as any];
     post.likeCount = (post.likeCount || 0) + 1;
-    
-    return post.save();
+
+    const savedPost = await post.save();
+
+    const postAuthorId = post.user.toString();
+    const likerId = user.id.toString();
+
+    if(postAuthorId !== likerId) {
+      await this.notificationHelper.createPostLikeNotification(
+        likerId,
+        postAuthorId,
+        postId
+      );
+    }
+    return savedPost
   }
 
   async unlike(postId: string, user: UserDocument): Promise<Post> {

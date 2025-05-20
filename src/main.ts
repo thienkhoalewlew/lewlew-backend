@@ -3,14 +3,32 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from '@nestjs/common';
+import { IoAdapter } from '@nestjs/platform-socket.io';
+
+class CustomIoAdapter extends IoAdapter {
+  createIOServer(port: number, options?: any): any {
+    const server = super.createIOServer(port, {
+      ...options,
+      cors: {
+        origin: "*",
+        methods: ["GET", "POST"],
+        credentials: true,
+      },
+      allowEIO3: true,
+    });
+    return server;
+  }
+}
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
   
+  app.useWebSocketAdapter(new CustomIoAdapter(app));
+
   // Cấu hình global prefix để hỗ trợ cả mobile và web
   app.setGlobalPrefix('api', {
-    exclude: ['health'], // Loại trừ endpoint /health để có thể truy cập trực tiếp
+    exclude: ['health'],
   });
   
   // Cấu hình CORS chi tiết hơn để cho phép kết nối từ Expo và các nguồn khác

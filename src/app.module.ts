@@ -9,9 +9,10 @@ import { AuthModule } from './auth/auth.module';
 import { PostsModule } from './posts/posts.module';
 import { CommentsModule } from './comments/comments.module';
 import { UploadsModule } from './uploads/uploads.module';
-import { UploadsService } from './uploads/uploads.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { NotificationsModule } from './notifications/notifications.module';
+import { Socket } from 'socket.io';
+import { SocketModule } from './socket/socket.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     CommentsModule,
     UploadsModule,
     NotificationsModule,
+    SocketModule,
   ],
   controllers: [AppController],
   providers: [AppService],

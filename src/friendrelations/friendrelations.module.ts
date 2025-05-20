@@ -7,6 +7,7 @@ import {
   FriendRelationSchema,
 } from './schemas/friendrelation.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
+import { NotificationsModule } from 'src/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { User, UserSchema } from '../users/schemas/user.schema';
       { name: FriendRelation.name, schema: FriendRelationSchema },
       { name: User.name, schema: UserSchema },
     ]),
+    NotificationsModule,
   ],
   controllers: [FriendrelationsController],
   providers: [FriendrelationsService],
