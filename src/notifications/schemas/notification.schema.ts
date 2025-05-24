@@ -13,10 +13,9 @@ export class Notification {
 
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User' })
   sender: User;
-
   @Prop({
     required: true,
-    enum: ['like', 'comment', 'friend_request', 'friend_accept', 'nearby_post'],
+    enum: ['like', 'comment', 'friend_request', 'friend_accept', 'nearby_post', 'friend_post'],
   })
   type: string;
 

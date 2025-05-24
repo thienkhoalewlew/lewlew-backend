@@ -12,28 +12,33 @@ export class PostsService {
     @InjectModel(Post.name) private postModel: Model<PostDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private readonly notificationHelper: NotificationHelperService,
-  ) {}  async create(createPostDto: CreatePostDto, user: any): Promise<Post> {
+  ) {}
+  
+  async create(createPostDto: CreatePostDto, user: any): Promise<Post> {
     const expiresAt = createPostDto.expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000); // Default 24 hours
     
     const newPost = new this.postModel({
-      imageUrl: createPostDto.image, // Ánh xạ từ image trong DTO sang imageUrl trong schema
+      imageUrl: createPostDto.image,
       caption: createPostDto.caption,
       location: createPostDto.location,
-      user: user.userId, // Sử dụng userId từ JWT payload thay vì _id
+      user: user.userId,
       expiresAt,
       createdAt: new Date(),
       likeCount: 0,
       commentCount: 0,
-    });
+    });    const savedPost = await newPost.save();
     
-    return newPost.save();
+    // Gửi thông báo cho bạn bè khi người dùng tạo bài viết mới
+    await this.notifyFriendsAboutNewPost(user.userId, savedPost._id);
+    
+    return savedPost;
   }
 
-async findByUser(userId: string): Promise<Post[]> {
-  return this.postModel.find({ user: userId, expiresAt: { $gt: new Date() } })
-    .sort({ createdAt: -1 })
-    .exec();
-}
+  async findByUser(userId: string): Promise<Post[]> {
+    return this.postModel.find({ user: userId, expiresAt: { $gt: new Date() } })
+      .sort({ createdAt: -1 })
+      .exec();
+  }
 
   async findNearby(lat: number, lng: number, radius: number = 10): Promise<Post[]> {
     // Convert radius from km to radians (Earth radius is approximately 6371 km)
@@ -124,7 +129,6 @@ async findByUser(userId: string): Promise<Post[]> {
     
     return post.save();
   }
-
   async deletePost(postId: string, userId: string): Promise<void> {
   const post = await this.postModel.findById(postId);
   if (!post) {
@@ -136,5 +140,35 @@ async findByUser(userId: string): Promise<Post[]> {
   }
 
   await post.deleteOne();
+  }
+    /**
+   * Gửi thông báo cho tất cả bạn bè khi người dùng tạo một bài viết mới
+   */
+  private async notifyFriendsAboutNewPost(userId: string, postId: any): Promise<void> {
+    try {
+      // Đảm bảo postId là string
+      const postIdString = typeof postId === 'object' && postId !== null ? 
+        postId.toString() : String(postId);
+      
+      // Tìm người dùng và lấy danh sách bạn bè
+      const user = await this.userModel.findById(userId);
+      if (!user || !user.friends || user.friends.length === 0) {
+        return; // Không có bạn bè để thông báo
+      }
+      
+      // Gửi thông báo đến từng người bạn
+      const promises = user.friends.map(friendId => 
+        this.notificationHelper.createFriendPostNotification(
+          userId, // senderId (người đăng bài)
+          friendId.toString(), // recipientId (người bạn nhận thông báo)
+          postIdString // ID của bài viết mới
+        )
+      );
+      
+      await Promise.all(promises);
+    } catch (error) {
+      console.error('Error sending notifications to friends:', error);
+      // Không ném lỗi ra ngoài để không ảnh hưởng đến việc tạo bài viết
+    }
   }
 }

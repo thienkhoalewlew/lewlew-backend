@@ -16,15 +16,13 @@ export class CreateNotificationDto {
     })
     @IsOptional()
     @IsString()
-    senderId?: string;
-
-    @ApiProperty({
+    senderId?: string;    @ApiProperty({
         description: "Type of the notification",
         example: "message",
-        enum: ['like', 'comment', 'friend_request', 'friend_accept', 'nearby_post']
+        enum: ['like', 'comment', 'friend_request', 'friend_accept', 'nearby_post', 'friend_post']
     })
     @IsNotEmpty()
-    @IsEnum(['like', 'comment', 'friend_request', 'friend_accept', 'nearby_post'])
+    @IsEnum(['like', 'comment', 'friend_request', 'friend_accept', 'nearby_post', 'friend_post'])
     type: string;
 
     @ApiProperty({

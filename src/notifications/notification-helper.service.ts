@@ -67,4 +67,18 @@ export class NotificationHelperService {
             postId,
         });
     }
+
+    async createFriendPostNotification(
+        senderId: string,
+        recipientId: string,
+        postId: string
+    ): Promise<void> {
+        await this.notificationService.createNotification({
+            recipientId,
+            senderId,
+            type: 'friend_post',
+            message: 'has posted a new post',
+            postId,
+        });
+    }
 }
