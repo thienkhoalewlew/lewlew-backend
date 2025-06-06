@@ -84,11 +84,20 @@ export class NotificationsService {
       read: false
     }).exec();
   }
-
   async markAllAsRead(userId: string): Promise<void> {
-    await this.notificationModel.updateMany(
-      { recipient: userId, read: false },
-      { $set: { read: true } }
-    ).exec();
+    console.log('NotificationsService: markAllAsRead called for user:', userId);
+    
+    try {
+      const result = await this.notificationModel.updateMany(
+        { recipient: userId, read: false },
+        { $set: { read: true } }
+      ).exec();
+      
+      console.log('NotificationsService: markAllAsRead result:', result);
+      console.log('NotificationsService: Modified count:', result.modifiedCount);
+    } catch (error) {
+      console.error('NotificationsService: Error in markAllAsRead:', error);
+      throw error;
+    }
   }
 }

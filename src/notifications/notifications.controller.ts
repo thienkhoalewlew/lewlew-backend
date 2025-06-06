@@ -32,19 +32,9 @@ export class NotificationsController {
   @Get()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all notifications of current user' })
-  @ApiResponse({ status: 200, description: 'Notifications list' })
-  async getNotifications(@Req() req) {
+  @ApiResponse({ status: 200, description: 'Notifications list' })  async getNotifications(@Req() req) {
     console.log('Get notifications request from user:', req.user);
     return this.notificationsService.getNotificationsByRecipent(req.user.userId || req.user.id);
-  }
-  
-  @UseGuards(JwtAuthGuard)
-  @Patch(':id')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Mark notification as read' })
-  @ApiResponse({ status: 200, description: 'Notification marked as read' })
-  async markAsRead(@Param('id') id: string, @Body() dto: UpdateNotificationDto) {
-    return this.notificationsService.markAsRead(id, dto);
   }
   
   @UseGuards(JwtAuthGuard)
@@ -53,7 +43,7 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Get count of unread notifications' })
   @ApiResponse({ status: 200, description: 'Unread notification count' })
   async getUnreadCount(@Req() req) {
-    const count = await this.notificationsService.getUnreadCount(req.user.id);
+    const count = await this.notificationsService.getUnreadCount(req.user.userId || req.user.id);
     return { count };
   }
   
@@ -63,7 +53,17 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Mark all notifications as read' })
   @ApiResponse({ status: 200, description: 'All notifications marked as read' })
   async markAllAsRead(@Req() req) {
-    await this.notificationsService.markAllAsRead(req.user.id);
+    console.log('Mark all as read request from user:', req.user);
+    await this.notificationsService.markAllAsRead(req.user.userId || req.user.id);
     return { message: 'Tất cả thông báo đã được đánh dấu đã đọc' };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Mark notification as read' })
+  @ApiResponse({ status: 200, description: 'Notification marked as read' })
+  async markAsRead(@Param('id') id: string, @Body() dto: UpdateNotificationDto) {
+    return this.notificationsService.markAsRead(id, dto);
   }
 }

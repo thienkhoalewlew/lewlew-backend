@@ -9,6 +9,7 @@ import { UpdateEmailDto } from './dto/update-email.dto';
 import { UpdateUsernameDto } from './dto/update-username.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
+import { UploadsService } from '../uploads/uploads.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(FriendRelation.name) private friendRelationModel: Model<FriendRelation>,
+    private readonly uploadsService: UploadsService,
   ) {}
 
   async findByEmail(email: string): Promise<UserDocument | null> {
@@ -91,6 +93,27 @@ export class UsersService {
 
     user.avatar = avatar;
     await user.save();
+
+    // Lưu thông tin ảnh vào uploads collection nếu có avatar URL từ Cloudinary
+    if (avatar && avatar.includes('cloudinary.com')) {
+      try {
+        await this.uploadsService.saveImangeInfo({
+          url: avatar,
+          filename: `avatar_${userId}.jpg`,
+          originalname: `user_avatar_${userId}.jpg`,
+          mimetype: 'image/jpeg',
+          size: 0, // Size sẽ được cập nhật từ Cloudinary metadata nếu cần
+          metadata: {
+            type: 'user_avatar',
+            userId: userId,
+            uploadedAt: new Date(),
+          }
+        }, userId);
+      } catch (error) {
+        console.error('Error saving avatar image info to uploads:', error);
+        // Không throw error để không ảnh hưởng đến việc cập nhật avatar
+      }
+    }
   }
 
   async updatePassword(userId: string, dto: UpdatePasswordDto): Promise<void> {

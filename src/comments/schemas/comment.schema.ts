@@ -12,9 +12,11 @@ export class Comment {
 
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', required: true })
   user: User;
-
-  @Prop({ required: true })
+  @Prop({ required: false })
   text: string;
+
+  @Prop({ required: false })
+  image: string;
 
   @Prop({ type: [{ type: MongooseSchema.Types.ObjectId, ref: 'User' }] })
   likes: User[];

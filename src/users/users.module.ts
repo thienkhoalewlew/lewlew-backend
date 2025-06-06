@@ -4,6 +4,7 @@ import { UsersService } from './users.service';
 import { User, UserSchema } from './schemas/user.schema';
 import { MongooseModule } from '@nestjs/mongoose';
 import { FriendRelation, FriendRelationSchema } from '../friendrelations/schemas/friendrelation.schema';
+import { UploadsModule } from '../uploads/uploads.module';
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { FriendRelation, FriendRelationSchema } from '../friendrelations/schemas
       { name: User.name, schema: UserSchema },
       { name: FriendRelation.name, schema: FriendRelationSchema },
     ]),
+    UploadsModule,
   ],
   controllers: [UsersController],
   providers: [UsersService],

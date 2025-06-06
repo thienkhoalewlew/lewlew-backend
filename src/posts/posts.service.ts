@@ -4,16 +4,18 @@ import { Model } from 'mongoose';
 import { Post, PostDocument } from './schemas/post.schema';
 import { CreatePostDto } from './dto/create-post.dto';
 import { User, UserDocument } from '../users/schemas/user.schema';
+import { Upload, UploadDocument } from '../uploads/schemas/upload.schema';
 import { NotificationHelperService } from '../notifications/notification-helper.service';
+import { UploadsService } from '../uploads/uploads.service';
 
 @Injectable()
-export class PostsService {
-  constructor(
+export class PostsService {  constructor(
     @InjectModel(Post.name) private postModel: Model<PostDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Upload.name) private uploadModel: Model<UploadDocument>,
     private readonly notificationHelper: NotificationHelperService,
+    private readonly uploadsService: UploadsService,
   ) {}
-  
   async create(createPostDto: CreatePostDto, user: any): Promise<Post> {
     const expiresAt = createPostDto.expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000); // Default 24 hours
     
@@ -26,25 +28,86 @@ export class PostsService {
       createdAt: new Date(),
       likeCount: 0,
       commentCount: 0,
-    });    const savedPost = await newPost.save();
+    });    
+
+    const savedPost = await newPost.save();
+    
+    // Lưu thông tin ảnh vào uploads collection nếu có image URL từ Cloudinary
+    if (createPostDto.image && createPostDto.image.includes('cloudinary.com')) {
+      try {
+        await this.uploadsService.saveImangeInfo({
+          url: createPostDto.image,
+          filename: `post_${savedPost.id}.jpg`,
+          originalname: `post_image_${savedPost.id}.jpg`,
+          mimetype: 'image/jpeg',
+          size: 0, // Size sẽ được cập nhật từ Cloudinary metadata nếu cần
+          metadata: {
+            type: 'post_image',
+            postId: savedPost.id,
+            uploadedAt: new Date(),
+          }
+        }, user.userId);
+      } catch (error) {
+        console.error('Error saving post image info to uploads:', error);
+        // Không throw error để không ảnh hưởng đến việc tạo post
+      }
+    }
     
     // Gửi thông báo cho bạn bè khi người dùng tạo bài viết mới
-    await this.notifyFriendsAboutNewPost(user.userId, savedPost._id);
+    await this.notifyFriendsAboutNewPost(user.userId, savedPost.id);
     
     return savedPost;
   }
 
   async findByUser(userId: string): Promise<Post[]> {
-    return this.postModel.find({ user: userId, expiresAt: { $gt: new Date() } })
+    const posts = await this.postModel.find({ user: userId, expiresAt: { $gt: new Date() } })
+      .populate('user', '-password')
       .sort({ createdAt: -1 })
       .exec();
+
+    // Enhance posts with upload information
+    const enhancedPosts = await Promise.all(
+      posts.map(async (post) => {
+        try {
+          // Find corresponding upload info for this post's image
+          const uploadInfo = await this.uploadModel.findOne({
+            'metadata.postId': post.id,
+            'metadata.type': 'post_image'
+          }).exec();
+
+          // Add upload metadata to post if available
+          if (uploadInfo) {
+            return {
+              ...post.toObject(),
+              uploadInfo: {
+                id: uploadInfo.id,
+                filename: uploadInfo.filename,
+                originalname: uploadInfo.originalname,
+                mimetype: uploadInfo.mimetype,
+                size: uploadInfo.size,
+                uploadedAt: uploadInfo.metadata?.uploadedAt,
+                status: uploadInfo.status
+              }
+            };
+          }
+          
+          return post.toObject();
+        } catch (error) {
+          console.error('Error fetching upload info for post:', post.id, error);
+          return post.toObject();
+        }
+      })
+    );
+
+    return enhancedPosts as Post[];
   }
 
   async findNearby(lat: number, lng: number, radius: number = 10): Promise<Post[]> {
     // Convert radius from km to radians (Earth radius is approximately 6371 km)
     const radiusInRadians = radius / 6371;
     
-    return this.postModel.find({
+    // Find posts within the radius that haven't expired
+    const posts = await this.postModel.find({
       'location.coordinates': {
         $geoWithin: {
           $centerSphere: [[lng, lat], radiusInRadians]
@@ -55,6 +118,41 @@ export class PostsService {
     .populate('user', '-password')
     .sort({ createdAt: -1 })
     .exec();
+
+    // Enhance posts with upload information
+    const enhancedPosts = await Promise.all(
+      posts.map(async (post) => {        try {
+          // Find corresponding upload info for this post's image
+          const uploadInfo = await this.uploadModel.findOne({
+            'metadata.postId': post.id,
+            'metadata.type': 'post_image'
+          }).exec();
+
+          // Add upload metadata to post if available
+          if (uploadInfo) {
+            return {
+              ...post.toObject(),
+              uploadInfo: {
+                id: uploadInfo.id,
+                filename: uploadInfo.filename,
+                originalname: uploadInfo.originalname,
+                mimetype: uploadInfo.mimetype,
+                size: uploadInfo.size,
+                uploadedAt: uploadInfo.metadata?.uploadedAt,
+                status: uploadInfo.status
+              }
+            };
+          }
+          
+          return post.toObject();
+        } catch (error) {
+          console.error('Error fetching upload info for post:', post.id, error);
+          return post.toObject();
+        }
+      })
+    );
+
+    return enhancedPosts as Post[];
   }
   async findByFriends(userId: string): Promise<Post[]> {
     // Tìm người dùng qua ID
@@ -69,36 +167,76 @@ export class PostsService {
     }
     
     // Lấy tất cả bài viết từ danh sách bạn bè (chưa hết hạn)
-    return this.postModel.find({
+    const posts = await this.postModel.find({
       user: { $in: user.friends },
       expiresAt: { $gt: new Date() }
     })
     .populate('user', '-password')
     .sort({ createdAt: -1 })
     .exec();
-  }
 
-  async like(postId: string, user: UserDocument): Promise<Post> {
+    // Enhance posts with upload information
+    const enhancedPosts = await Promise.all(
+      posts.map(async (post) => {
+        try {
+          // Find corresponding upload info for this post's image
+          const uploadInfo = await this.uploadModel.findOne({
+            'metadata.postId': post.id,
+            'metadata.type': 'post_image'
+          }).exec();
+
+          // Add upload metadata to post if available
+          if (uploadInfo) {
+            return {
+              ...post.toObject(),
+              uploadInfo: {
+                id: uploadInfo.id,
+                filename: uploadInfo.filename,
+                originalname: uploadInfo.originalname,
+                mimetype: uploadInfo.mimetype,
+                size: uploadInfo.size,
+                uploadedAt: uploadInfo.metadata?.uploadedAt,
+                status: uploadInfo.status
+              }
+            };
+          }
+          
+          return post.toObject();
+        } catch (error) {
+          console.error('Error fetching upload info for post:', post.id, error);
+          return post.toObject();
+        }
+      })
+    );
+
+    return enhancedPosts as Post[];
+  }
+  async like(postId: string, user: any): Promise<Post> {
     const post = await this.postModel.findById(postId);
     if (!post) {
       throw new NotFoundException('Post not found');
     }
     
-    // Check if user already liked the post
-    const alreadyLiked = post.likes && post.likes.some(userId => 
-      userId.toString() === user._id?.toString());
+    // Get userId from JWT payload (user.userId from JWT strategy)
+    const userId = user.userId || user._id || user.id;
+    if (!userId) {
+      throw new BadRequestException('Invalid user identification');
+    }
+      // Check if user already liked the post
+    const alreadyLiked = post.likes && post.likes.some(likeUserId => 
+      likeUserId && likeUserId.toString() === userId.toString());
     if (alreadyLiked) {
       throw new BadRequestException('User already liked this post');
     }
     
     // Add user to likes array and increment likeCount
-    post.likes = [...(post.likes || []), user._id as any];
+    post.likes = [...(post.likes || []), userId];
     post.likeCount = (post.likeCount || 0) + 1;
 
     const savedPost = await post.save();
 
     const postAuthorId = post.user.toString();
-    const likerId = user.id.toString();
+    const likerId = userId.toString();
 
     if(postAuthorId !== likerId) {
       await this.notificationHelper.createPostLikeNotification(
@@ -109,16 +247,20 @@ export class PostsService {
     }
     return savedPost
   }
-
-  async unlike(postId: string, user: UserDocument): Promise<Post> {
+  async unlike(postId: string, user: any): Promise<Post> {
     const post = await this.postModel.findById(postId);
     if (!post) {
       throw new NotFoundException('Post not found');
     }
     
-    // Check if user liked the post
-    const likedIndex = post.likes ? post.likes.findIndex(userId => 
-      userId.toString() === user._id?.toString()) : -1;
+    // Get userId from JWT payload (user.userId from JWT strategy)
+    const userId = user.userId || user._id || user.id;
+    if (!userId) {
+      throw new BadRequestException('Invalid user identification');
+    }
+      // Check if user liked the post
+    const likedIndex = post.likes ? post.likes.findIndex(likeUserId => 
+      likeUserId && likeUserId.toString() === userId.toString()) : -1;
     if (likedIndex === -1) {
       throw new BadRequestException('User has not liked this post');
     }
@@ -128,14 +270,13 @@ export class PostsService {
     post.likeCount = Math.max(0, (post.likeCount || 1) - 1);
     
     return post.save();
-  }
-  async deletePost(postId: string, userId: string): Promise<void> {
+  }  async deletePost(postId: string, userId: string): Promise<void> {
   const post = await this.postModel.findById(postId);
   if (!post) {
     throw new NotFoundException('Post not found');
   }
 
-  if (post.user.toString() !== userId) {
+  if (post.user.toString() !== userId.toString()) {
     throw new BadRequestException('You are not authorized to delete this post');
   }
 

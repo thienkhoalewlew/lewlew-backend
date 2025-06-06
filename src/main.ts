@@ -55,8 +55,8 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, document);
   // Lấy port từ biến môi trường hoặc mặc định là 3000
   const port = process.env.PORT || 3000;
-  await app.listen(port);
-  logger.log(`Application is running on: ${await app.getUrl()}`);
+  await app.listen(port, '0.0.0.0'); // Listen on all interfaces
+  logger.log(`Application is running on: http://0.0.0.0:${port}`);
   logger.log(`Swagger documentation: http://localhost:${port}/api`);
 }
 bootstrap().catch((err) => {
