@@ -48,9 +48,18 @@ export class PostsController {
   @Get('my-posts')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get posts of the current logged-in user' })
+  @ApiQuery({ 
+    name: 'includeExpired', 
+    required: false, 
+    type: Boolean,
+    description: 'Whether to include expired posts in the response'
+  })
   @ApiResponse({ status: 200, description: 'List of user posts' })
-  async getMyPosts(@Req() req) {
-    return this.postsService.findByUser(req.user.userId);
+  async getMyPosts(@Req() req, @Query('includeExpired') includeExpired: string) {
+    // Convert string query param to boolean
+    const shouldIncludeExpired = includeExpired === 'true';
+    console.log('Getting posts with includeExpired:', shouldIncludeExpired);
+    return this.postsService.findByUser(req.user.userId, shouldIncludeExpired);
   }
   
   @UseGuards(JwtAuthGuard)
@@ -168,6 +177,17 @@ export class PostsController {
   @ApiResponse({ status: 404, description: 'User not found' })
   getFriendPosts(@Param('userId') userId: string) {
     return this.postsService.findByFriends(userId);
+  }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get a post by ID' })
+  @ApiParam({ name: 'id', description: 'Post ID', type: String })
+  @ApiResponse({ status: 200, description: 'Post details' })
+  @ApiResponse({ status: 404, description: 'Post not found' })
+  async getPostById(@Param('id') id: string) {
+    return this.postsService.findById(id);
   }
 
   @Post(':id/like')

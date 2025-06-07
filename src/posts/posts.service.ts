@@ -59,11 +59,25 @@ export class PostsService {  constructor(
     return savedPost;
   }
 
-  async findByUser(userId: string): Promise<Post[]> {
-    const posts = await this.postModel.find({ user: userId, expiresAt: { $gt: new Date() } })
+  async findByUser(userId: string, includeExpired: boolean = false): Promise<Post[]> {
+    console.log('Finding posts for user:', userId, 'includeExpired:', includeExpired);
+    
+    // Base query to find posts by user
+    const query: any = { user: userId };
+    
+    // Only add expiration filter if we don't want to include expired posts
+    if (!includeExpired) {
+      query.expiresAt = { $gt: new Date() };
+    }
+
+    console.log('Query:', JSON.stringify(query));
+
+    const posts = await this.postModel.find(query)
       .populate('user', '-password')
       .sort({ createdAt: -1 })
       .exec();
+
+    console.log('Found posts count:', posts.length);
 
     // Enhance posts with upload information
     const enhancedPosts = await Promise.all(
@@ -310,6 +324,56 @@ export class PostsService {  constructor(
     } catch (error) {
       console.error('Error sending notifications to friends:', error);
       // Không ném lỗi ra ngoài để không ảnh hưởng đến việc tạo bài viết
+    }
+  }
+
+  async findById(postId: string): Promise<Post> {
+    const post = await this.postModel.findById(postId)
+      .populate('user', '-password')
+      .exec();
+    
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+
+    // Kiểm tra bài viết đã hết hạn chưa (quá 24h)
+    const now = new Date();
+    const postCreatedAt = new Date(post.createdAt);
+    const timeDifference = now.getTime() - postCreatedAt.getTime();
+    const hoursDifference = timeDifference / (1000 * 60 * 60);
+    
+    if (hoursDifference >= 24) {
+      throw new NotFoundException('Post has expired (older than 24 hours)');
+    }
+
+    // Enhance post with upload information
+    try {
+      // Find corresponding upload info for this post's image
+      const uploadInfo = await this.uploadModel.findOne({
+        'metadata.postId': post.id,
+        'metadata.type': 'post_image'
+      }).exec();
+
+      // Add upload metadata to post if available
+      if (uploadInfo) {
+        return {
+          ...post.toObject(),
+          uploadInfo: {
+            id: uploadInfo.id,
+            filename: uploadInfo.filename,
+            originalname: uploadInfo.originalname,
+            mimetype: uploadInfo.mimetype,
+            size: uploadInfo.size,
+            uploadedAt: uploadInfo.metadata?.uploadedAt,
+            status: uploadInfo.status
+          }
+        } as Post;
+      }
+      
+      return post.toObject() as Post;
+    } catch (error) {
+      console.error('Error fetching upload info for post:', post.id, error);
+      return post.toObject() as Post;
     }
   }
 }

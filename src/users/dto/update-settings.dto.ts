@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsBoolean, IsNumber, IsOptional } from "class-validator";
+import { IsBoolean, IsNumber, IsOptional, IsEnum } from "class-validator";
 
 export class UpdateSettingsDto {
     @ApiProperty({
@@ -28,4 +28,14 @@ export class UpdateSettingsDto {
     @IsOptional()
     @IsBoolean()
     emailNotifications?: boolean;
+
+    @ApiProperty({
+        description: "User interface language",
+        example: "en",
+        enum: ["en", "vi"],
+        required: false
+    })
+    @IsOptional()
+    @IsEnum(["en", "vi"])
+    language?: "en" | "vi";
 }

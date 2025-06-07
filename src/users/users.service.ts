@@ -1,16 +1,18 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { UserDocument } from './schemas/user.schema';
 import { FriendRelation } from '../friendrelations/schemas/friendrelation.schema';
-import { Model, set } from 'mongoose';
+import { Model } from 'mongoose';
 import { User } from './schemas/user.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { CurrentUserProfileDto, OtherUserProfileDto } from './dto/user-profile.dto';
 import { UpdateEmailDto } from './dto/update-email.dto';
-import { UpdateUsernameDto } from './dto/update-username.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { UploadsService } from '../uploads/uploads.service';
 import * as bcrypt from 'bcrypt';
+import { UpdateFullnameDto } from './dto/update-fullname.dto';
+import { UpdateUsernameDto } from './dto/update-username.dto';
+import { UpdateBioDto } from './dto/update-bio.dto';
 
 @Injectable()
 export class UsersService {
@@ -116,32 +118,47 @@ export class UsersService {
     }
   }
 
-  async updatePassword(userId: string, dto: UpdatePasswordDto): Promise<void> {
-    const user = await this.userModel.findById(userId).select('+password').exec();
-    if (!user) {
-      throw new NotFoundException(`Cannot find user with id: ${userId}`);
-    }
-
-    if (!user.password) {
-      throw new Error('User does not have a password set');
-    }
-
-    const isMatch = await bcrypt.compare(dto.currentPassword, user.password);
-    if (!isMatch) {
-      throw new Error('Current password is incorrect');
-    }
-
-    user.password = await bcrypt.hash(dto.newPassword, 10);
-    await user.save();
-  }
-
   async updateEmail(userId: string, dto: UpdateEmailDto): Promise<void> {
     const user = await this.userModel.findById(userId).exec();
     if (!user) {
       throw new NotFoundException(`Cannot find user with id: ${userId}`);
     }
 
+    // Check if email is already in use
+    const existingUser = await this.userModel.findOne({ email: dto.email }).exec();
+    if (existingUser && existingUser.id !== userId) {
+      throw new BadRequestException('Email is already in use');
+    }
+
     user.email = dto.email;
+    await user.save();
+  }
+
+  async updatePassword(userId: string, dto: UpdatePasswordDto): Promise<void> {
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) {
+      throw new NotFoundException(`Cannot find user with id: ${userId}`);
+    }
+
+    // Verify current password
+    const isPasswordValid = await bcrypt.compare(dto.currentPassword, user.password);
+    if (!isPasswordValid) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+  }
+
+  async updateFullname(userId: string, dto: UpdateFullnameDto): Promise<void> {
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) {
+      throw new NotFoundException(`Cannot find user with id: ${userId}`);
+    }
+
+    user.fullName = dto.fullname;
     await user.save();
   }
 
@@ -151,7 +168,27 @@ export class UsersService {
       throw new NotFoundException(`Cannot find user with id: ${userId}`);
     }
 
-    user.fullName = dto.username;
+    // Check if username already exists
+    const existingUser = await this.userModel.findOne({ 
+      username: dto.username,
+      _id: { $ne: userId }
+    }).exec();
+    
+    if (existingUser) {
+      throw new ConflictException('Username already exists');
+    }
+
+    user.username = dto.username;
+    await user.save();
+  }
+
+  async updateBio(userId: string, dto: UpdateBioDto): Promise<void> {
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) {
+      throw new NotFoundException(`Cannot find user with id: ${userId}`);
+    }
+
+    user.bio = dto.bio;
     await user.save();
   }
 

@@ -5,19 +5,19 @@ export type UserDocument = User & Document;
 
 @Schema({ timestamps: true })
 export class User {
-  @Prop()
+  @Prop({ required: false, unique: true })
   username: string;
 
-  @Prop()
+  @Prop({ required: true })
   fullName: string;
 
   @Prop({ required: true, unique: true })
   email: string;
 
-  @Prop({ required: true })
-  password?: string;
+  @Prop({ required: true, select: false })
+  password: string;
 
-  @Prop()
+  @Prop({ default: '' })
   avatar: string;
 
   @Prop({ required: false })
@@ -57,12 +57,20 @@ export class User {
       notificationRadius: { type: Number, default: 5 },
       pushNotifications: { type: Boolean, default: true },
       emailNotifications: { type: Boolean, default: true },
+      language: { type: String, enum: ['en', 'vi'], default: 'vi' }
     },
+    default: {
+      notificationRadius: 5,
+      pushNotifications: true,
+      emailNotifications: true,
+      language: 'vi'
+    }
   })
   settings: {
     notificationRadius: number;
     pushNotifications: boolean;
     emailNotifications: boolean;
+    language: 'en' | 'vi';
   };
 
   @Prop()

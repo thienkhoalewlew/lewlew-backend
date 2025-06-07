@@ -28,12 +28,23 @@ export class AuthService {
     if (existingUser) {
       throw new ConflictException('Email has been used');
     }
-
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Generate unique username from email
+    let baseUsername = email.split('@')[0];
+    let username = baseUsername;
+    let counter = 1;
+    
+    // Check if username already exists and add number suffix if needed
+    while (await this.userModel.findOne({ username }).exec()) {
+      username = `${baseUsername}${counter}`;
+      counter++;
+    }
+
     const newUser = new this.userModel({
       email,
+      username,
       password: hashedPassword,
       fullName,
       avatar,
@@ -58,7 +69,7 @@ export class AuthService {
 
     // Trả về thông tin user và token không bao gồm password
     const userResponse = savedUser.toObject();
-    delete userResponse.password;
+    delete (userResponse as any).password;
 
     return {
       user: userResponse,
@@ -71,7 +82,7 @@ export class AuthService {
   ): Promise<{ user: Omit<UserDocument, 'password'>; token: string }> {
     const { email, password } = loginDto;
 
-    const user = await this.userModel.findOne({ email }).exec();
+    const user = await this.userModel.findOne({ email }).select('+password').exec();
     if (!user || !user.password) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -87,7 +98,7 @@ export class AuthService {
     const token = this.generateToken(user);
 
     const userResponse = user.toObject();
-    delete userResponse.password;
+    delete (userResponse as any).password;
 
     return {
       user: userResponse,

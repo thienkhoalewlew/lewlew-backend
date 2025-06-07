@@ -21,12 +21,12 @@ export class FriendrelationsService {
   async searchUsers(userId: string, searchDto: SearchUsersDto) {
     const { query = '', page = 1, limit = 10 } = searchDto;
     const skip = (page - 1) * limit;
-
     // Tạo điều kiện tìm kiếm
     const searchCondition = query
       ? {
           $or: [
             { fullName: { $regex: query, $options: 'i' } },
+            { username: { $regex: query, $options: 'i' } },
             { email: { $regex: query, $options: 'i' } },
           ],
           _id: { $ne: userId }, // Loại trừ người dùng hiện tại
@@ -35,11 +35,10 @@ export class FriendrelationsService {
 
     // Đếm tổng số kết quả
     const total = await this.userModel.countDocuments(searchCondition);
-
     // Lấy danh sách người dùng
     const users = await this.userModel
       .find(searchCondition)
-      .select('_id fullName email avatar')
+      .select('_id fullName username email avatar')
       .skip(skip)
       .limit(limit)
       .exec();

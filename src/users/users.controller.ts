@@ -1,35 +1,39 @@
-import { Body, Controller, Get, Patch, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Query, Req, UseGuards, NotFoundException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUserProfileDto } from './dto/user-profile.dto';
 import { UpdateAvatarDto } from './dto/update-avatar.dto'
 import { UpdateEmailDto } from './dto/update-email.dto';
-import { UpdateUsernameDto } from './dto/update-username.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
+import { UpdateFullnameDto } from './dto/update-fullname.dto';
+import { UpdateUsernameDto } from './dto/update-username.dto';
+import { UpdateBioDto } from './dto/update-bio.dto';
 
 @ApiTags('Users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly userService: UsersService) {}
 
-@UseGuards(JwtAuthGuard)
-@Get('profile')
-@ApiBearerAuth()
-@ApiOperation({ summary: 'Get user profile - current user or by ID' })
-@ApiQuery({ name: 'userId', required: false, description: 'Optional user ID to get profile. If not provided, returns current user profile.' })
-@ApiResponse({ status: 200, description: 'User profile', type: CurrentUserProfileDto })
-@ApiResponse({ status: 404, description: 'User not found' })
-async getProfile(@Req() req, @Query('userId') userId?: string) {
-  if (userId) {
-    // Lấy thông tin người dùng khác
-    return this.userService.getOtherUserProfile(req.user.userId, userId);
-  } else {
-    // Lấy thông tin người dùng hiện tại 
-    return this.userService.getCurrentUserProfile(req.user.userId);
+  @UseGuards(JwtAuthGuard)
+  @Get('profile')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiQuery({ name: 'userId', required: false, description: 'ID of the user to get profile for (if not provided, returns current user profile)' })
+  async getCurrentUserProfile(@Req() req, @Query('userId') userId?: string) {
+    if (userId) {
+      // Lấy profile của user khác
+      return await this.userService.getOtherUserProfile(req.user.userId, userId);
+    } else {
+      // Lấy profile của user hiện tại
+      const user = await this.userService.findById(req.user.userId);
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+      return user;
+    }
   }
-}
 
   @UseGuards(JwtAuthGuard)
   @Patch('update_avatar')
@@ -44,12 +48,21 @@ async getProfile(@Req() req, @Query('userId') userId?: string) {
   @UseGuards(JwtAuthGuard)
   @Patch('update_password')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update user password' })
+  @ApiOperation({ summary: 'Update password' })
   @ApiResponse({ status: 200, description: 'Password updated successfully' })
   @ApiResponse({ status: 400, description: 'Invalid current password' })
   async updatePassword(@Req() req, @Body() dto: UpdatePasswordDto) {
     await this.userService.updatePassword(req.user.userId, dto);
     return { message: 'Password updated successfully' };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('update_fullname')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update full name' })
+  async updateFullname(@Req() req, @Body() dto: UpdateFullnameDto) {
+    await this.userService.updateFullname(req.user.userId, dto);
+    return { message: 'Full name updated successfully' };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -68,6 +81,15 @@ async getProfile(@Req() req, @Query('userId') userId?: string) {
   async updateEmail(@Req() req, @Body() dto: UpdateEmailDto) {
     await this.userService.updateEmail(req.user.userId, dto);
     return { message: 'Email updated successfully' };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('update_bio')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update user bio' })
+  async updateBio(@Req() req, @Body() dto: UpdateBioDto) {
+    await this.userService.updateBio(req.user.userId, dto);
+    return { message: 'Bio updated successfully' };
   }
 
   @UseGuards(JwtAuthGuard)
