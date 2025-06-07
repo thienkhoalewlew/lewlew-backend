@@ -5,7 +5,6 @@ import { Model } from 'mongoose';
 import { User } from './schemas/user.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { CurrentUserProfileDto, OtherUserProfileDto } from './dto/user-profile.dto';
-import { UpdateEmailDto } from './dto/update-email.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { UploadsService } from '../uploads/uploads.service';
@@ -22,12 +21,25 @@ export class UsersService {
     private readonly uploadsService: UploadsService,
   ) {}
 
-  async findByEmail(email: string): Promise<UserDocument | null> {
-    return this.userModel.findOne({ email });
+  async findByPhoneNumber(phoneNumber: string): Promise<UserDocument | null> {
+    return this.userModel.findOne({ 
+      phoneNumber,
+      $or: [
+        { isTemporary: { $exists: false } },
+        { isTemporary: false }
+      ]
+    });
   }
 
   async findById(id: string): Promise<UserDocument> {
-    const user = await this.userModel.findById(id).exec();
+    const user = await this.userModel.findOne({
+      _id: id,
+      $or: [
+        { isTemporary: { $exists: false } },
+        { isTemporary: false }
+      ]
+    }).exec();
+    
     if (!user) {
       throw new NotFoundException(`Cant find user with id: ${id}`);
     }
@@ -35,23 +47,38 @@ export class UsersService {
   }
 
   async getCurrentUserProfile(userId: string): Promise<CurrentUserProfileDto> {
-    const user = await this.userModel.findById(userId).exec();
+    const user = await this.userModel.findOne({
+      _id: userId,
+      $or: [
+        { isTemporary: { $exists: false } },
+        { isTemporary: false }
+      ]
+    }).exec();
+    
     if (!user) {
       throw new NotFoundException(`Cant find user with id: ${userId}`);
     }
     
     return {
       _id: (user._id as unknown as string),
+      username: user.username,
       fullname: user.fullName,
       avatar: user.avatar,
-      email: user.email,
+      phoneNumber: user.phoneNumber,
       bio: user.bio,
       friendCount: user.friends.length || 0,
     }
   }
 
   async getOtherUserProfile(userId: string, targetUserId: string): Promise<OtherUserProfileDto> {
-    const user = await this.userModel.findById(targetUserId).exec();
+    const user = await this.userModel.findOne({
+      _id: targetUserId,
+      $or: [
+        { isTemporary: { $exists: false } },
+        { isTemporary: false }
+      ]
+    }).exec();
+    
     if (!user) {
       throw new NotFoundException(`Cant find user with id: ${targetUserId}`);
     }
@@ -64,20 +91,32 @@ export class UsersService {
     }).exec();
 
     let friendStatus: 'none' | 'pending' | 'accept' | 'reject' = 'none';
+    let requestId: string | undefined = undefined;
+    let isRequestSender: boolean | undefined = undefined;
+
     if (friendRelation && friendRelation.status) {
       // Kiểm tra và ép kiểu giá trị của friendRelation.status
       if (['none', 'pending', 'accepted', 'reject'].includes(friendRelation.status)) {
         friendStatus = friendRelation.status as 'none' | 'pending' | 'accept' | 'reject';
+        
+        // Nếu status là pending, cung cấp thông tin chi tiết
+        if (friendRelation.status === 'pending') {
+          requestId = (friendRelation._id as unknown as string);
+          isRequestSender = friendRelation.requester.toString() === userId;
+        }
       }
     }
 
     return {
       _id: (user._id as unknown as string),
+      username: user.username,
       fullname: user.fullName,
       avatar: user.avatar,
       bio: user.bio,
       friendCount: user.friends?.length || 0,
       friendStatus: friendStatus,
+      requestId: requestId,
+      isRequestSender: isRequestSender,
     };
   }
 
@@ -88,7 +127,14 @@ export class UsersService {
   }
 
   async updateAvatar(userId: string, avatar: string): Promise<void> {
-    const user = await this.userModel.findById(userId).exec();
+    const user = await this.userModel.findOne({
+      _id: userId,
+      $or: [
+        { isTemporary: { $exists: false } },
+        { isTemporary: false }
+      ]
+    }).exec();
+    
     if (!user) {
       throw new NotFoundException(`Cannot find user with id: ${userId}`);
     }
@@ -118,24 +164,15 @@ export class UsersService {
     }
   }
 
-  async updateEmail(userId: string, dto: UpdateEmailDto): Promise<void> {
-    const user = await this.userModel.findById(userId).exec();
-    if (!user) {
-      throw new NotFoundException(`Cannot find user with id: ${userId}`);
-    }
-
-    // Check if email is already in use
-    const existingUser = await this.userModel.findOne({ email: dto.email }).exec();
-    if (existingUser && existingUser.id !== userId) {
-      throw new BadRequestException('Email is already in use');
-    }
-
-    user.email = dto.email;
-    await user.save();
-  }
-
   async updatePassword(userId: string, dto: UpdatePasswordDto): Promise<void> {
-    const user = await this.userModel.findById(userId).exec();
+    const user = await this.userModel.findOne({
+      _id: userId,
+      $or: [
+        { isTemporary: { $exists: false } },
+        { isTemporary: false }
+      ]
+    }).exec();
+    
     if (!user) {
       throw new NotFoundException(`Cannot find user with id: ${userId}`);
     }
@@ -153,7 +190,14 @@ export class UsersService {
   }
 
   async updateFullname(userId: string, dto: UpdateFullnameDto): Promise<void> {
-    const user = await this.userModel.findById(userId).exec();
+    const user = await this.userModel.findOne({
+      _id: userId,
+      $or: [
+        { isTemporary: { $exists: false } },
+        { isTemporary: false }
+      ]
+    }).exec();
+    
     if (!user) {
       throw new NotFoundException(`Cannot find user with id: ${userId}`);
     }
@@ -163,15 +207,26 @@ export class UsersService {
   }
 
   async updateUsername(userId: string, dto: UpdateUsernameDto): Promise<void> {
-    const user = await this.userModel.findById(userId).exec();
+    const user = await this.userModel.findOne({
+      _id: userId,
+      $or: [
+        { isTemporary: { $exists: false } },
+        { isTemporary: false }
+      ]
+    }).exec();
+    
     if (!user) {
       throw new NotFoundException(`Cannot find user with id: ${userId}`);
     }
 
-    // Check if username already exists
+    // Check if username already exists (exclude temporary users)
     const existingUser = await this.userModel.findOne({ 
       username: dto.username,
-      _id: { $ne: userId }
+      _id: { $ne: userId },
+      $or: [
+        { isTemporary: { $exists: false } },
+        { isTemporary: false }
+      ]
     }).exec();
     
     if (existingUser) {
@@ -183,7 +238,14 @@ export class UsersService {
   }
 
   async updateBio(userId: string, dto: UpdateBioDto): Promise<void> {
-    const user = await this.userModel.findById(userId).exec();
+    const user = await this.userModel.findOne({
+      _id: userId,
+      $or: [
+        { isTemporary: { $exists: false } },
+        { isTemporary: false }
+      ]
+    }).exec();
+    
     if (!user) {
       throw new NotFoundException(`Cannot find user with id: ${userId}`);
     }
@@ -193,7 +255,14 @@ export class UsersService {
   }
 
   async updateSettings(userId: string, settings: UpdateSettingsDto): Promise<void> {
-    const user = await this.userModel.findById(userId).exec();
+    const user = await this.userModel.findOne({
+      _id: userId,
+      $or: [
+        { isTemporary: { $exists: false } },
+        { isTemporary: false }
+      ]
+    }).exec();
+    
     if (!user) {
       throw new NotFoundException(`Cannot find user with id: ${userId}`);
     }

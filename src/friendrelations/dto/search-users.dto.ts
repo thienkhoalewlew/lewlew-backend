@@ -4,7 +4,7 @@ import { Type } from 'class-transformer';
 
 export class SearchUsersDto {
   @ApiProperty({
-    description: 'Search query for user full name, username, or email',
+    description: 'Search query for user full name, username, or phone number',
     example: 'john',
     required: false
   })

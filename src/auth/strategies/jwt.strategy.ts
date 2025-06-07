@@ -16,7 +16,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       secretOrKey: secretKey,
     });
   }
-
   async validate(payload: JwtPayload) {
     console.log('JWT Strategy validating payload:', payload);
     try {
@@ -26,9 +25,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         throw new UnauthorizedException('User not found');
       }
       
-      // Trả về đối tượng đơn giản chỉ chứa userId và email
+      // Trả về đối tượng đơn giản chỉ chứa userId và phoneNumber
       console.log('User validated successfully, ID:', payload.sub);
-      return { userId: payload.sub, email: payload.email };
+      return { userId: payload.sub, phoneNumber: payload.phoneNumber };
     } catch (error) {
       console.error('JWT validation error:', error.message);
       throw new UnauthorizedException(error.message);

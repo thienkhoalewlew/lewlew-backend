@@ -2,7 +2,7 @@ import { Document } from 'mongoose';
 
 export interface IUser extends Document {
   fullName: string;
-  email: string;
+  phoneNumber: string;
   password?: string;
   avatar: string;
   location: {
@@ -13,8 +13,7 @@ export interface IUser extends Document {
   friendRequests: Array<{ from: IUser; createdAt: Date }>;
   settings: {
     notificationRadius: number;
-    pushNotifications: boolean;
-    emailNotifications: boolean;
+    language: string;
   };
   lastActive: Date;
 }

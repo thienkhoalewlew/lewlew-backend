@@ -35,8 +35,10 @@ export class CommentsService {
       image: createCommentDto.image,
       likeCount: 0,
     });
-
     const savedComment = await newComment.save();
+
+    // Populate user information
+    await savedComment.populate('user', '_id fullName username email avatar phoneNumber');
 
     // Lưu thông tin ảnh vào uploads collection nếu có image URL từ Cloudinary
     if (createCommentDto.image && createCommentDto.image.includes('cloudinary.com')) {
@@ -79,11 +81,10 @@ export class CommentsService {
 
     return savedComment;
   }
-
   async getCommentsByPost(postId: string): Promise<Comment[]> {
     return this.commentModel
       .find({ post: postId })
-      .populate('user', 'fullName email avatar')
+      .populate('user', '_id fullName username email avatar phoneNumber')
       .sort({ createdAt: -1 })
       .exec();
   }

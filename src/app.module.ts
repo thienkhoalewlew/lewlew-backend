@@ -13,6 +13,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { NotificationsModule } from './notifications/notifications.module';
 import { Socket } from 'socket.io';
 import { SocketModule } from './socket/socket.module';
+import { MigrationsModule } from './migrations/migrations.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { SocketModule } from './socket/socket.module';
     UploadsModule,
     NotificationsModule,
     SocketModule,
+    MigrationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

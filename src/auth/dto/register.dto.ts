@@ -1,13 +1,26 @@
 import {
-  IsEmail,
   IsNotEmpty,
   IsOptional,
   IsString,
   MinLength,
+  Matches,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class RegisterDto {
+  @ApiProperty({
+    description: 'Username (unique identifier)',
+    example: 'johnsmith123',
+    required: true
+  })
+  @IsNotEmpty()
+  @IsString()
+  @MinLength(3)
+  @Matches(/^[a-zA-Z0-9_]+$/, {
+    message: 'Username can only contain letters, numbers and underscores'
+  })
+  username: string;
+
   @ApiProperty({
     description: 'Full name of the user',
     example: 'John Smith',
@@ -18,13 +31,16 @@ export class RegisterDto {
   fullName: string;
 
   @ApiProperty({
-    description: 'Email address',
-    example: 'john.smith@example.com',
+    description: 'Phone number (Vietnamese format)',
+    example: '+84901234567',
     required: true
   })
   @IsNotEmpty()
-  @IsEmail()
-  email: string;
+  @IsString()
+  @Matches(/^(\+84|0)[3-9][0-9]{8}$/, {
+    message: 'Phone number must be a valid Vietnamese phone number'
+  })
+  phoneNumber: string;
 
   @ApiProperty({
     description: 'Password (minimum 8 characters)',

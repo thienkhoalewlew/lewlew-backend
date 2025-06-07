@@ -4,7 +4,6 @@ import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUserProfileDto } from './dto/user-profile.dto';
 import { UpdateAvatarDto } from './dto/update-avatar.dto'
-import { UpdateEmailDto } from './dto/update-email.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { UpdateFullnameDto } from './dto/update-fullname.dto';
@@ -72,15 +71,6 @@ export class UsersController {
   async updateUsername(@Req() req, @Body() dto: UpdateUsernameDto) {
     await this.userService.updateUsername(req.user.userId, dto);
     return { message: 'Username updated successfully' };
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Patch('update_email')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update email' })
-  async updateEmail(@Req() req, @Body() dto: UpdateEmailDto) {
-    await this.userService.updateEmail(req.user.userId, dto);
-    return { message: 'Email updated successfully' };
   }
 
   @UseGuards(JwtAuthGuard)

@@ -5,20 +5,32 @@ export type UserDocument = User & Document;
 
 @Schema({ timestamps: true })
 export class User {
-  @Prop({ required: false, unique: true })
+  @Prop({ required: false, unique: true, sparse: true })
   username: string;
 
   @Prop({ required: true })
   fullName: string;
 
   @Prop({ required: true, unique: true })
-  email: string;
+  phoneNumber: string;
 
   @Prop({ required: true, select: false })
   password: string;
 
   @Prop({ default: '' })
   avatar: string;
+
+  @Prop({ default: null })
+  verificationCode?: string;
+
+  @Prop({ default: null })
+  verificationCodeExpires?: Date;
+
+  @Prop({ default: false })
+  phoneVerified: boolean;
+
+  @Prop({ default: false })
+  isTemporary: boolean;
 
   @Prop({ required: false })
   bio?: string;
@@ -55,21 +67,15 @@ export class User {
   @Prop({
     type: {
       notificationRadius: { type: Number, default: 5 },
-      pushNotifications: { type: Boolean, default: true },
-      emailNotifications: { type: Boolean, default: true },
       language: { type: String, enum: ['en', 'vi'], default: 'vi' }
     },
     default: {
       notificationRadius: 5,
-      pushNotifications: true,
-      emailNotifications: true,
       language: 'vi'
     }
   })
   settings: {
     notificationRadius: number;
-    pushNotifications: boolean;
-    emailNotifications: boolean;
     language: 'en' | 'vi';
   };
 
@@ -80,7 +86,7 @@ export class User {
 export const UserSchema = SchemaFactory.createForClass(User);
 
 // Thêm indexes
-UserSchema.index({ email: 1 });
+UserSchema.index({ phoneNumber: 1 });
 UserSchema.index({ 'location.coordinates': '2dsphere' });
 
 UserSchema.set('toJSON', {

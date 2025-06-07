@@ -9,6 +9,11 @@ export class CurrentUserProfileDto {
   @ApiProperty({
     example: 'john_doe',
   })
+  username: string;
+
+  @ApiProperty({
+    example: 'John Doe',
+  })
   fullname: string;
 
   @ApiProperty({
@@ -17,9 +22,9 @@ export class CurrentUserProfileDto {
   avatar: string;
 
   @ApiProperty(({
-    example: 'example@example.com',
+    example: '+84901234567',
   }))
-  email: string;
+  phoneNumber: string;
 
   @ApiProperty({
     example: 'Hello, I am John Doe!',
@@ -41,6 +46,11 @@ export class OtherUserProfileDto {
 
   @ApiProperty({
     example: 'john_doe',
+  })
+  username: string;
+
+  @ApiProperty({
+    example: 'John Doe',
   })
   fullname: string;
 
@@ -65,4 +75,18 @@ export class OtherUserProfileDto {
     required: false,
   })
   friendStatus?: 'none' | 'pending' | 'accept' | 'reject';
+
+  @ApiProperty({
+    example: '661f0b6f2e7c3c001f9c9a12',
+    required: false,
+    description: 'Friend request ID when status is pending'
+  })
+  requestId?: string;
+
+  @ApiProperty({
+    example: true,
+    required: false,
+    description: 'Whether the current user is the sender of the friend request'
+  })
+  isRequestSender?: boolean;
 }

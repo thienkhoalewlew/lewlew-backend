@@ -25,20 +25,34 @@ export class FriendrelationsService {
     const searchCondition = query
       ? {
           $or: [
-            { fullName: { $regex: query, $options: 'i' } },
             { username: { $regex: query, $options: 'i' } },
-            { email: { $regex: query, $options: 'i' } },
+            { phoneNumber: { $regex: query, $options: 'i' } },
           ],
-          _id: { $ne: userId }, // Loại trừ người dùng hiện tại
+          _id: { $ne: userId },
+          // Loại trừ người dùng hiện tại
+          $and: [
+            {
+              $or: [
+                { isTemporary: { $exists: false } },
+                { isTemporary: false }
+              ]
+            }
+          ]
         }
-      : { _id: { $ne: userId } };
+      : { 
+          _id: { $ne: userId },
+          $or: [
+            { isTemporary: { $exists: false } },
+            { isTemporary: false }
+          ]
+        };
 
     // Đếm tổng số kết quả
     const total = await this.userModel.countDocuments(searchCondition);
     // Lấy danh sách người dùng
     const users = await this.userModel
       .find(searchCondition)
-      .select('_id fullName username email avatar')
+      .select('_id fullName username phoneNumber avatar')
       .skip(skip)
       .limit(limit)
       .exec();
@@ -294,7 +308,7 @@ export class FriendrelationsService {
         .select('friends')
         .populate({
           path: 'friends',
-          select: '_id fullName email avatar',
+          select: '_id fullName username email avatar',
           options: {
             skip,
             limit,
@@ -332,14 +346,13 @@ export class FriendrelationsService {
    */
   async getFriendRequests(userId: string, page = 1, limit = 10) {
     const skip = (page - 1) * limit;
-
     // Lấy người dùng với danh sách lời mời kết bạn
     const user = await this.userModel
       .findById(userId)
       .select('friendRequests')
       .populate({
         path: 'friendRequests.from',
-        select: '_id fullName email avatar',
+        select: '_id fullName username email avatar',
         options: {
           skip,
           limit,
@@ -396,7 +409,6 @@ export class FriendrelationsService {
       requester: userId,
       status: 'pending',
     }).exec();
-
     const sentRequests = await this.friendRelationModel
       .find({
         requester: userId,
@@ -404,7 +416,7 @@ export class FriendrelationsService {
       })
       .skip(skip)
       .limit(limit)
-      .populate('user2', '_id fullName email avatar')
+      .populate('user2', '_id fullName username email avatar')
       .exec();
 
     return {
