@@ -14,6 +14,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { Socket } from 'socket.io';
 import { SocketModule } from './socket/socket.module';
 import { MigrationsModule } from './migrations/migrations.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { MigrationsModule } from './migrations/migrations.module';
     NotificationsModule,
     SocketModule,
     MigrationsModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

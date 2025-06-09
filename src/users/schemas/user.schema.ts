@@ -86,7 +86,6 @@ export class User {
 export const UserSchema = SchemaFactory.createForClass(User);
 
 // Thêm indexes
-UserSchema.index({ phoneNumber: 1 });
 UserSchema.index({ 'location.coordinates': '2dsphere' });
 
 UserSchema.set('toJSON', {

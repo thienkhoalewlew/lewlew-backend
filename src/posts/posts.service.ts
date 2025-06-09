@@ -58,12 +58,16 @@ export class PostsService {  constructor(
     
     return savedPost;
   }
-
-  async findByUser(userId: string, includeExpired: boolean = false): Promise<Post[]> {
-    console.log('Finding posts for user:', userId, 'includeExpired:', includeExpired);
+  async findByUser(userId: string, includeExpired: boolean = false, includeDeleted: boolean = false): Promise<Post[]> {
+    console.log('Finding posts for user:', userId, 'includeExpired:', includeExpired, 'includeDeleted:', includeDeleted);
     
     // Base query to find posts by user
     const query: any = { user: userId };
+    
+    // Filter out soft-deleted posts unless specifically requested
+    if (!includeDeleted) {
+      query.isDeleted = { $ne: true };
+    }
     
     // Only add expiration filter if we don't want to include expired posts
     if (!includeExpired) {
@@ -115,19 +119,19 @@ export class PostsService {  constructor(
 
     return enhancedPosts as Post[];
   }
-
   async findNearby(lat: number, lng: number, radius: number = 10): Promise<Post[]> {
     // Convert radius from km to radians (Earth radius is approximately 6371 km)
     const radiusInRadians = radius / 6371;
     
-    // Find posts within the radius that haven't expired
+    // Find posts within the radius that haven't expired and are not soft-deleted
     const posts = await this.postModel.find({
       'location.coordinates': {
         $geoWithin: {
           $centerSphere: [[lng, lat], radiusInRadians]
         }
       },
-      expiresAt: { $gt: new Date() }
+      expiresAt: { $gt: new Date() },
+      isDeleted: { $ne: true }
     })
     .populate('user', '-password')
     .sort({ createdAt: -1 })
@@ -179,11 +183,11 @@ export class PostsService {  constructor(
     if (!user.friends || user.friends.length === 0) {
       return [];
     }
-    
-    // Lấy tất cả bài viết từ danh sách bạn bè (chưa hết hạn)
+      // Lấy tất cả bài viết từ danh sách bạn bè (chưa hết hạn và chưa bị xóa)
     const posts = await this.postModel.find({
       user: { $in: user.friends },
-      expiresAt: { $gt: new Date() }
+      expiresAt: { $gt: new Date() },
+      isDeleted: { $ne: true }
     })
     .populate('user', '-password')
     .sort({ createdAt: -1 })
@@ -226,9 +230,12 @@ export class PostsService {  constructor(
     return enhancedPosts as Post[];
   }
   async like(postId: string, user: any): Promise<Post> {
-    const post = await this.postModel.findById(postId);
+    const post = await this.postModel.findOne({ 
+      _id: postId, 
+      isDeleted: { $ne: true } 
+    });
     if (!post) {
-      throw new NotFoundException('Post not found');
+      throw new NotFoundException('Post not found or has been deleted');
     }
     
     // Get userId from JWT payload (user.userId from JWT strategy)
@@ -262,9 +269,12 @@ export class PostsService {  constructor(
     return savedPost
   }
   async unlike(postId: string, user: any): Promise<Post> {
-    const post = await this.postModel.findById(postId);
+    const post = await this.postModel.findOne({ 
+      _id: postId, 
+      isDeleted: { $ne: true } 
+    });
     if (!post) {
-      throw new NotFoundException('Post not found');
+      throw new NotFoundException('Post not found or has been deleted');
     }
     
     // Get userId from JWT payload (user.userId from JWT strategy)
@@ -284,17 +294,63 @@ export class PostsService {  constructor(
     post.likeCount = Math.max(0, (post.likeCount || 1) - 1);
     
     return post.save();
-  }  async deletePost(postId: string, userId: string): Promise<void> {
-  const post = await this.postModel.findById(postId);
-  if (!post) {
-    throw new NotFoundException('Post not found');
+  }
+  async deletePost(postId: string, userId: string, reason: string = 'Deleted by user'): Promise<void> {
+    const post = await this.postModel.findOne({ 
+      _id: postId, 
+      isDeleted: { $ne: true } 
+    });
+    if (!post) {
+      throw new NotFoundException('Post not found or already deleted');
+    }
+
+    if (post.user.toString() !== userId.toString()) {
+      throw new BadRequestException('You are not authorized to delete this post');
+    }    // Soft delete: mark as deleted instead of removing from database
+    post.isDeleted = true;
+    post.deletedAt = new Date();
+    post.deletedBy = userId;
+    post.deletionReason = reason;
+    
+    await post.save();
+    
+    console.log(`🗑️ Post ${postId} soft deleted by user ${userId}. Reason: ${reason}`);
   }
 
-  if (post.user.toString() !== userId.toString()) {
-    throw new BadRequestException('You are not authorized to delete this post');
-  }
+  /**
+   * Admin method to permanently delete a post (hard delete)
+   * Only use this when absolutely necessary
+   */
+  async hardDeletePost(postId: string, adminUserId: string): Promise<void> {
+    const post = await this.postModel.findById(postId);
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
 
-  await post.deleteOne();
+    await post.deleteOne();
+    console.log(`🔥 Post ${postId} permanently deleted by admin ${adminUserId}`);
+  }
+  /**
+   * Soft delete a post due to report violation
+   * Used by the reporting system
+   */
+  async softDeletePostByReport(postId: string, reason: string, moderatorId?: string): Promise<void> {
+    const post = await this.postModel.findOne({ 
+      _id: postId, 
+      isDeleted: { $ne: true } 
+    });
+    if (!post) {
+      throw new NotFoundException('Post not found or already deleted');
+    }
+    // Soft delete: mark as deleted
+    post.isDeleted = true;
+    post.deletedAt = new Date();
+    post.deletedBy = moderatorId || post.user; // Use moderator ID if available, otherwise post owner
+    post.deletionReason = reason;
+    
+    await post.save();
+    
+    console.log(`🚨 Post ${postId} soft deleted due to report. Reason: ${reason}. Moderator: ${moderatorId || 'system'}`);
   }
     /**
    * Gửi thông báo cho tất cả bạn bè khi người dùng tạo một bài viết mới
@@ -326,14 +382,16 @@ export class PostsService {  constructor(
       // Không ném lỗi ra ngoài để không ảnh hưởng đến việc tạo bài viết
     }
   }
-
   async findById(postId: string): Promise<Post> {
-    const post = await this.postModel.findById(postId)
+    const post = await this.postModel.findOne({ 
+      _id: postId, 
+      isDeleted: { $ne: true } 
+    })
       .populate('user', '-password')
       .exec();
     
     if (!post) {
-      throw new NotFoundException('Post not found');
+      throw new NotFoundException('Post not found or has been deleted');
     }
 
     // Kiểm tra bài viết đã hết hạn chưa (quá 24h)

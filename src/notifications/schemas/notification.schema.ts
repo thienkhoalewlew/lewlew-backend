@@ -15,7 +15,18 @@ export class Notification {
   sender: User;
   @Prop({
     required: true,
-    enum: ['like', 'comment', 'friend_request', 'friend_accept', 'nearby_post', 'friend_post'],
+    enum: [
+      'like', 
+      'comment', 
+      'friend_request', 
+      'friend_accept', 
+      'nearby_post', 
+      'friend_post', 
+      'post_removed',
+      'report_approved',
+      'report_rejected', 
+      'report_under_review'
+    ],
   })
   type: string;
 
