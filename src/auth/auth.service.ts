@@ -15,6 +15,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { SendVerificationDto } from './dto/send-verification.dto';
 import { VerifyCodeDto } from './dto/verify-code.dto';
+import { SendForgotPasswordCodeDto, VerifyForgotPasswordCodeDto, ResetPasswordDto } from './dto/forgot-password.dto';
 import { SmsService } from './services/sms.service';
 
 @Injectable()
@@ -266,14 +267,118 @@ export class AuthService {
     if (!user.verificationCodeExpires || user.verificationCodeExpires < new Date()) {
       throw new BadRequestException('Verification code has expired');
     }
-
     // Mark phone as verified and clear verification code
     await this.userModel.findByIdAndUpdate(user._id, {
       phoneVerified: true,
-      verificationCode: null,
-      verificationCodeExpires: null,
+      verificationCode: undefined,
+      verificationCodeExpires: undefined,
     });
 
     return { message: 'Phone number verified successfully' };
+  }
+
+  // Forgot Password functionality
+  async sendForgotPasswordCode(dto: SendForgotPasswordCodeDto): Promise<{ message: string }> {
+    const { phoneNumber } = dto;
+    
+    // Check if user exists and is not temporary
+    const existingUser = await this.userModel.findOne({ 
+      phoneNumber,
+      $or: [
+        { isTemporary: { $exists: false } },
+        { isTemporary: false }
+      ]
+    }).exec();
+    
+    if (!existingUser) {
+      throw new BadRequestException('No account found with this phone number');
+    }
+
+    // Generate verification code
+    const code = this.smsService.generateVerificationCode();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Store forgot password code
+    existingUser.verificationCode = code;
+    existingUser.verificationCodeExpires = expiresAt;
+    await existingUser.save();
+
+    // Send SMS
+    const smsSent = await this.smsService.sendVerificationCode(phoneNumber, code);
+    
+    if (!smsSent) {
+      throw new BadRequestException('Failed to send verification code');
+    }
+
+    // Log code trong development mode
+    const smsMode = this.smsService.getServiceMode();
+    if (smsMode.isDevelopment) {
+      this.logger.warn(`🔧 DEVELOPMENT MODE: Forgot password code for ${phoneNumber} is: ${code}`);
+      this.logger.warn(`📝 Use this code to reset your password`);
+    }
+
+    return { message: 'Password reset code sent successfully' };
+  }
+
+  async verifyForgotPasswordCode(dto: VerifyForgotPasswordCodeDto): Promise<{ message: string }> {
+    const { phoneNumber, code } = dto;
+
+    // Find the user
+    const user = await this.userModel.findOne({ 
+      phoneNumber,
+      $or: [
+        { isTemporary: { $exists: false } },
+        { isTemporary: false }
+      ]
+    }).exec();
+    
+    if (!user) {
+      throw new BadRequestException('No account found with this phone number');
+    }
+
+    if (!user.verificationCode || user.verificationCode !== code) {
+      throw new BadRequestException('Invalid verification code');
+    }
+
+    if (!user.verificationCodeExpires || user.verificationCodeExpires < new Date()) {
+      throw new BadRequestException('Verification code has expired');
+    }
+
+    return { message: 'Verification code verified successfully' };
+  }
+
+  async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
+    const { phoneNumber, code, newPassword } = dto;
+
+    // Find the user
+    const user = await this.userModel.findOne({ 
+      phoneNumber,
+      $or: [
+        { isTemporary: { $exists: false } },
+        { isTemporary: false }
+      ]
+    }).exec();
+    
+    if (!user) {
+      throw new BadRequestException('No account found with this phone number');
+    }
+
+    // Verify code again for security
+    if (!user.verificationCode || user.verificationCode !== code) {
+      throw new BadRequestException('Invalid verification code');
+    }
+
+    if (!user.verificationCodeExpires || user.verificationCodeExpires < new Date()) {
+      throw new BadRequestException('Verification code has expired');
+    }    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    
+    // Update password and clear verification code
+    user.password = hashedPassword;
+    user.verificationCode = undefined;
+    user.verificationCodeExpires = undefined;
+    await user.save();
+
+    return { message: 'Password reset successfully' };
   }
 }

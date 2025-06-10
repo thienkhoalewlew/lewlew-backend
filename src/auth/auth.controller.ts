@@ -4,6 +4,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { SendVerificationDto } from './dto/send-verification.dto';
 import { VerifyCodeDto } from './dto/verify-code.dto';
+import { SendForgotPasswordCodeDto, VerifyForgotPasswordCodeDto, ResetPasswordDto } from './dto/forgot-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Request } from 'express';
 import { User, UserDocument } from '../users/schemas/user.schema';
@@ -114,5 +115,30 @@ export class AuthController {
       // Chỉ hiển thị code trong development mode
       ...(this.smsService.getServiceMode().isDevelopment && { testCode: code })
     };
+  }
+
+  // Forgot Password endpoints
+  @Post('forgot-password/send-code')
+  @ApiOperation({ summary: 'Send verification code for password reset' })
+  @ApiResponse({ status: 200, description: 'Password reset code sent successfully' })
+  @ApiResponse({ status: 400, description: 'No account found with this phone number' })
+  sendForgotPasswordCode(@Body() dto: SendForgotPasswordCodeDto) {
+    return this.authService.sendForgotPasswordCode(dto);
+  }
+
+  @Post('forgot-password/verify-code')
+  @ApiOperation({ summary: 'Verify password reset code' })
+  @ApiResponse({ status: 200, description: 'Verification code verified successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired verification code' })
+  verifyForgotPasswordCode(@Body() dto: VerifyForgotPasswordCodeDto) {
+    return this.authService.verifyForgotPasswordCode(dto);
+  }
+
+  @Post('forgot-password/reset')
+  @ApiOperation({ summary: 'Reset password with verified code' })
+  @ApiResponse({ status: 200, description: 'Password reset successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired verification code' })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 }
