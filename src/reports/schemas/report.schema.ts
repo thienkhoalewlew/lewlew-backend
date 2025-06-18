@@ -37,8 +37,6 @@ export class Report {
   })
   reason: ReportReason;
 
-  @Prop({ type: String, maxlength: 500 })
-  description?: string;
 
   @Prop({ 
     type: String, 

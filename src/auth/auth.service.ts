@@ -168,6 +168,51 @@ export class AuthService {
       token,
     };
   }
+  async adminLogin(
+    loginDto: LoginDto,
+  ): Promise<{ user: Omit<UserDocument, 'password'>; token: string }> {
+    const { login, password } = loginDto;
+    
+    // Find user by phone number or username (exclude temporary users) and must be admin
+    const user = await this.userModel.findOne({
+      $or: [
+        { phoneNumber: login },
+        { username: login }
+      ],
+      $and: [
+        {
+          $or: [
+            { isTemporary: { $exists: false } },
+            { isTemporary: false }
+          ]
+        },
+        { isAdmin: true }
+      ]
+    }).select('+password').exec();
+    
+    if (!user || !user.password) {
+      throw new UnauthorizedException('Invalid admin credentials');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid admin credentials');
+    }
+
+    // Update last active time
+    user.lastActive = new Date();
+    await user.save();
+
+    const token = this.generateToken(user);
+
+    const userResponse = user.toObject();
+    delete (userResponse as any).password;
+
+    return {
+      user: userResponse,
+      token,
+    };
+  }
   async validateUser(userId: string): Promise<User> {
     console.log('Validating user with ID:', userId);
     try {
@@ -237,13 +282,6 @@ export class AuthService {
       throw new BadRequestException('Failed to send verification code');
     }
 
-    // Log code trong development mode
-    const smsMode = this.smsService.getServiceMode();
-    if (smsMode.isDevelopment) {
-      this.logger.warn(`🔧 DEVELOPMENT MODE: Verification code for ${phoneNumber} is: ${code}`);
-      this.logger.warn(`📝 Use this code in your mobile app to complete verification`);
-    }
-
     return { message: 'Verification code sent successfully' };
   }
   
@@ -308,13 +346,6 @@ export class AuthService {
     
     if (!smsSent) {
       throw new BadRequestException('Failed to send verification code');
-    }
-
-    // Log code trong development mode
-    const smsMode = this.smsService.getServiceMode();
-    if (smsMode.isDevelopment) {
-      this.logger.warn(`🔧 DEVELOPMENT MODE: Forgot password code for ${phoneNumber} is: ${code}`);
-      this.logger.warn(`📝 Use this code to reset your password`);
     }
 
     return { message: 'Password reset code sent successfully' };

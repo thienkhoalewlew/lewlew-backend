@@ -18,6 +18,7 @@ export class Notification {
     enum: [
       'like', 
       'comment', 
+      'comment_like',
       'friend_request', 
       'friend_accept', 
       'nearby_post', 

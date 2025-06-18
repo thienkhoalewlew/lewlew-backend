@@ -29,10 +29,6 @@ export class Post {
     coordinates: number[];
     placeName: string;
   };
-
-  @Prop({ type: [{ type: MongooseSchema.Types.ObjectId, ref: 'User' }] })
-  likes: User[];
-
   @Prop({ default: 0 })
   likeCount: number;
 

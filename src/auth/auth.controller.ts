@@ -28,7 +28,7 @@ export class AuthController {
         id: '6571a2d3e87cf87df032a9b1',
         fullName: 'John Smith',
         phoneNumber: '+84901234567',
-        avatar: 'https://example.com/avatar.jpg',
+        avatar: null,
         createdAt: '2025-04-11T02:51:56+07:00',
         updatedAt: '2025-04-11T02:51:56+07:00',
         token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
@@ -40,7 +40,6 @@ export class AuthController {
   register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
   }
-
   @Post('login')
   @ApiOperation({ summary: 'Login to the system' })  @ApiResponse({ 
     status: 200, 
@@ -56,6 +55,26 @@ export class AuthController {
   })  @ApiResponse({ status: 401, description: 'Invalid phone number or password' })
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
+  }
+
+  @Post('admin/login')
+  @ApiOperation({ summary: 'Admin login to the system' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Admin login successful',
+    schema: {
+      example: {
+        id: '6571a2d3e87cf87df032a9b1',
+        phoneNumber: '+84901234567',
+        fullName: 'Admin User',
+        isAdmin: true,
+        token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+      }
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Invalid credentials or not an admin' })
+  adminLogin(@Body() loginDto: LoginDto) {
+    return this.authService.adminLogin(loginDto);
   }
 
   @Post('send-verification')
@@ -85,35 +104,6 @@ export class AuthController {
       userId: req.user._id,
       phoneNumber: req.user.phoneNumber,
       message: 'Token is valid' 
-    };
-  }
-
-  @Get('sms-status')
-  @ApiOperation({ summary: 'Check SMS service status' })
-  @ApiResponse({ status: 200, description: 'SMS service status' })
-  getSmsStatus() {
-    const mode = this.smsService.getServiceMode();
-    return {
-      ...mode,
-      message: mode.isDevelopment 
-        ? 'SMS Service is in DEVELOPMENT mode - using fixed code 123456' 
-        : 'SMS Service is in PRODUCTION mode - using real Twilio SMS'
-    };
-  }
-
-  @Post('test-sms')
-  @ApiOperation({ summary: 'Test SMS sending (Development only)' })
-  @ApiResponse({ status: 200, description: 'SMS test result' })
-  async testSms(@Body() body: { phoneNumber: string }) {
-    const code = this.smsService.generateVerificationCode();
-    const success = await this.smsService.sendVerificationCode(body.phoneNumber, code);
-    
-    return {
-      success,
-      message: success ? 'SMS sent successfully' : 'Failed to send SMS',
-      mode: this.smsService.getServiceMode(),
-      // Chỉ hiển thị code trong development mode
-      ...(this.smsService.getServiceMode().isDevelopment && { testCode: code })
     };
   }
 

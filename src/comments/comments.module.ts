@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { CommentsController } from './comments.controller';
 import { CommentsService } from './comments.service';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -6,6 +6,7 @@ import { Comment, CommentSchema } from './schemas/comment.schema';
 import { Post, PostSchema } from '../posts/schemas/post.schema';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { UploadsModule } from '../uploads/uploads.module';
+import { LikesModule } from '../likes/likes.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { UploadsModule } from '../uploads/uploads.module';
     ]),
     NotificationsModule,
     UploadsModule,
+    forwardRef(() => LikesModule),
   ],
   controllers: [CommentsController],
   providers: [CommentsService],

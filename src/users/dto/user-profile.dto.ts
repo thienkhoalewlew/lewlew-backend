@@ -8,8 +8,9 @@ export class CurrentUserProfileDto {
 
   @ApiProperty({
     example: 'john_doe',
+    required: false,
   })
-  username: string;
+  username?: string;
 
   @ApiProperty({
     example: 'John Doe',
@@ -17,7 +18,7 @@ export class CurrentUserProfileDto {
   fullname: string;
 
   @ApiProperty({
-    example: 'https://example.com/profile.jpg',
+    example: 'https://res.cloudinary.com/demo/image/upload/profile.jpg',
   })
   avatar: string;
 
@@ -46,8 +47,9 @@ export class OtherUserProfileDto {
 
   @ApiProperty({
     example: 'john_doe',
+    required: false,
   })
-  username: string;
+  username?: string;
 
   @ApiProperty({
     example: 'John Doe',
@@ -55,7 +57,7 @@ export class OtherUserProfileDto {
   fullname: string;
 
   @ApiProperty({
-    example: 'https://example.com/profile.jpg',
+    example: 'https://res.cloudinary.com/demo/image/upload/profile.jpg',
   })
   avatar: string;
 

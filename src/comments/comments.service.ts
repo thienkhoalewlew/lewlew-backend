@@ -6,6 +6,7 @@ import { CreateCommentDto } from './dto/create-comment.dto';
 import { Post, PostDocument } from '../posts/schemas/post.schema';
 import { NotificationHelperService } from '../notifications/notification-helper.service';
 import { UploadsService } from '../uploads/uploads.service';
+import { LikesService } from '../likes/likes.service';
 
 @Injectable()
 export class CommentsService {
@@ -14,6 +15,7 @@ export class CommentsService {
     @InjectModel(Post.name) private postModel: Model<PostDocument>,
     private readonly notificationHelper: NotificationHelperService,
     private readonly uploadsService: UploadsService,
+    private readonly likesService: LikesService,
   ) {}
   async createComment(createCommentDto: CreateCommentDto, userId: string): Promise<Comment> {
     // Kiểm tra xem có text hoặc image
@@ -36,9 +38,15 @@ export class CommentsService {
       likeCount: 0,
     });
     const savedComment = await newComment.save();
-
-    // Populate user information
+    // Populate user information and ensure likeCount is set
     await savedComment.populate('user', '_id fullName username email avatar phoneNumber');
+
+    // Transform to include isLiked for current user
+    const commentWithLikeStatus = {
+      ...savedComment.toObject(),
+      isLiked: false, // New comment, user hasn't liked it yet
+      likeCount: 0 // Explicitly set to 0 for new comments
+    };
 
     // Lưu thông tin ảnh vào uploads collection nếu có image URL từ Cloudinary
     if (createCommentDto.image && createCommentDto.image.includes('cloudinary.com')) {
@@ -79,14 +87,60 @@ export class CommentsService {
       );
     }
 
-    return savedComment;
-  }
-  async getCommentsByPost(postId: string): Promise<Comment[]> {
-    return this.commentModel
+    return commentWithLikeStatus;
+  }  async getCommentsByPost(postId: string, userId?: string): Promise<Comment[]> {
+    const comments = await this.commentModel
       .find({ post: postId })
       .populate('user', '_id fullName username email avatar phoneNumber')
       .sort({ createdAt: -1 })
       .exec();
+
+    // Add isLiked status and ensure likeCount is correct for each comment
+    if (userId) {
+      const commentsWithLikeStatus = await Promise.all(
+        comments.map(async (comment) => {
+          const isLiked = await this.likesService.checkUserLikedComment(comment.id || comment._id, userId);
+          const actualLikeCount = await this.likesService.getCommentLikeCount(comment.id || comment._id);
+          
+          // Update likeCount in database if it doesn't match
+          if (comment.likeCount !== actualLikeCount) {
+            await this.commentModel.findByIdAndUpdate(
+              comment.id || comment._id,
+              { likeCount: actualLikeCount }
+            );
+          }
+          
+          return {
+            ...comment.toObject(),
+            isLiked,
+            likeCount: actualLikeCount
+          };
+        })
+      );
+      return commentsWithLikeStatus as Comment[];
+    }
+
+    // For non-authenticated users, still ensure likeCount is correct
+    const commentsWithCorrectCount = await Promise.all(
+      comments.map(async (comment) => {
+        const actualLikeCount = await this.likesService.getCommentLikeCount(comment.id || comment._id);
+        
+        // Update likeCount in database if it doesn't match
+        if (comment.likeCount !== actualLikeCount) {
+          await this.commentModel.findByIdAndUpdate(
+            comment.id || comment._id,
+            { likeCount: actualLikeCount }
+          );
+        }
+        
+        return {
+          ...comment.toObject(),
+          likeCount: actualLikeCount
+        };
+      })
+    );
+    
+    return commentsWithCorrectCount as Comment[];
   }
 
   async deleteComment(commentId: string, userId: string): Promise<void> {
@@ -106,49 +160,5 @@ export class CommentsService {
     );
 
     await comment.deleteOne();
-  }
-
-  async likeComment(commentId: string, userId: string): Promise<Comment> {
-    const comment = await this.commentModel.findById(commentId);
-    if (!comment) {
-      throw new NotFoundException('Comment not found');
-    }
-
-    // Kiểm tra xem user đã like comment chưa
-    const alreadyLiked = comment.likes && comment.likes.some(id => 
-      id.toString() === userId
-    );
-
-    if (alreadyLiked) {
-      throw new BadRequestException('Comment already liked');
-    }
-
-    // Thêm user vào danh sách likes
-    comment.likes = [...(comment.likes || []), userId as any];
-    comment.likeCount = (comment.likeCount || 0) + 1;
-
-    return comment.save();
-  }
-
-  async unlikeComment(commentId: string, userId: string): Promise<Comment> {
-    const comment = await this.commentModel.findById(commentId);
-    if (!comment) {
-      throw new NotFoundException('Comment not found');
-    }
-
-    // Kiểm tra xem user đã like comment chưa
-    const likedIndex = comment.likes ? comment.likes.findIndex(id => 
-      id.toString() === userId
-    ) : -1;
-
-    if (likedIndex === -1) {
-      throw new BadRequestException('Comment not liked yet');
-    }
-
-    // Xóa user khỏi danh sách likes
-    comment.likes.splice(likedIndex, 1);
-    comment.likeCount = Math.max(0, (comment.likeCount || 1) - 1);
-
-    return comment.save();
   }
 }

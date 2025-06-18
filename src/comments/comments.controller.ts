@@ -23,8 +23,8 @@ export class CommentsController {
         user: {
           id: '6571a2d3e87cf87df032a9b1',
           fullName: 'John Smith',
-          email: 'john.smith@example.com',
-          avatar: 'https://example.com/avatar.jpg'
+          email: 'user@domain.com',
+          avatar: null
         },
         text: 'Great photo!',
         image: 'https://res.cloudinary.com/demo/image/upload/v1234567890/comment-image.jpg',
@@ -40,8 +40,9 @@ export class CommentsController {
   async createComment(@Body() createCommentDto: CreateCommentDto, @Req() req) {
     return this.commentsService.createComment(createCommentDto, req.user.userId);
   }
-
   @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get comments for a post' })
   @ApiQuery({ name: 'postId', description: 'Post ID', required: true, example: '6571a2d3e87cf87df032a9b2' })
   @ApiResponse({ 
@@ -55,21 +56,22 @@ export class CommentsController {
           user: {
             id: '6571a2d3e87cf87df032a9b1',
             fullName: 'John Smith',
-            email: 'john.smith@example.com',
-            avatar: 'https://example.com/avatar.jpg'
+            email: 'user@domain.com',
+            avatar: null
           },
           text: 'Great photo!',
           image: null,
-          likes: [],
           likeCount: 0,
+          isLiked: false,
           createdAt: '2025-04-11T02:51:56+07:00'
         }
       ]
     }
   })
   @ApiResponse({ status: 400, description: 'Missing postId parameter' })
-  async getComments(@Query('postId') postId: string) {
-    return this.commentsService.getCommentsByPost(postId);
+  @ApiResponse({ status: 401, description: 'Unauthorized access' })
+  async getComments(@Query('postId') postId: string, @Req() req) {
+    return this.commentsService.getCommentsByPost(postId, req.user?.userId);
   }
 
   @Delete(':id')
@@ -82,52 +84,6 @@ export class CommentsController {
   @ApiResponse({ status: 404, description: 'Comment not found' })
   async deleteComment(@Param('id') id: string, @Req() req) {
     await this.commentsService.deleteComment(id, req.user.userId);
-    return { message: 'Comment deleted successfully' };
-  }
-
-  @Post(':id/like')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Like a comment' })
-  @ApiParam({ name: 'id', description: 'Comment ID', example: '6571a2d3e87cf87df032a9c1' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Comment liked successfully',
-    schema: {
-      example: {
-        id: '6571a2d3e87cf87df032a9c1',
-        likes: ['6571a2d3e87cf87df032a9b1'],
-        likeCount: 1
-      }
-    }
-  })
-  @ApiResponse({ status: 400, description: 'Comment already liked' })
-  @ApiResponse({ status: 401, description: 'Unauthorized access' })
-  @ApiResponse({ status: 404, description: 'Comment not found' })
-  async likeComment(@Param('id') id: string, @Req() req) {
-    return this.commentsService.likeComment(id, req.user.userId);
-  }
-
-  @Delete(':id/like')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Unlike a comment' })
-  @ApiParam({ name: 'id', description: 'Comment ID', example: '6571a2d3e87cf87df032a9c1' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Comment unliked successfully',
-    schema: {
-      example: {
-        id: '6571a2d3e87cf87df032a9c1',
-        likes: [],
-        likeCount: 0
-      }
-    }
-  })
-  @ApiResponse({ status: 400, description: 'Comment not liked yet' })
-  @ApiResponse({ status: 401, description: 'Unauthorized access' })
-  @ApiResponse({ status: 404, description: 'Comment not found' })
-  async unlikeComment(@Param('id') id: string, @Req() req) {
-    return this.commentsService.unlikeComment(id, req.user.userId);
+    return { message: 'Xóa bình luận thành công' };
   }
 }

@@ -176,7 +176,6 @@ export class ReportsService {
       console.error('Error auto-resolving report:', error);
     }
   }
-
   /**
    * Lấy danh sách reports (cho admin)
    */
@@ -210,9 +209,38 @@ export class ReportsService {
         .exec(),
       this.reportModel.countDocuments(query).exec(),
     ]);
+    const transformedReports = reports.map(report => {
+      const reportObj = report.toObject() as any;
+      return {
+        id: reportObj._id.toString(),
+        postId: reportObj.postId ? {
+          id: reportObj.postId._id?.toString() || reportObj.postId.toString(),
+          caption: reportObj.postId.caption,
+          imageUrl: reportObj.postId.imageUrl,
+          createdAt: reportObj.postId.createdAt
+        } : null,
+        reporterId: reportObj.reporterId ? {
+          id: reportObj.reporterId._id?.toString() || reportObj.reporterId.toString(),
+          fullName: reportObj.reporterId.fullName,
+          email: reportObj.reporterId.email,
+          avatar: reportObj.reporterId.avatar
+        } : null,
+        reason: reportObj.reason,
+        description: reportObj.description,
+        status: reportObj.status,
+        aiConfidenceScore: reportObj.aiConfidenceScore,
+        aiPrediction: reportObj.aiPrediction,
+        autoResolved: reportObj.autoResolved,
+        reviewedBy: reportObj.reviewedBy,
+        reviewedAt: reportObj.reviewedAt,
+        reviewComment: reportObj.reviewComment,
+        createdAt: reportObj.createdAt,
+        updatedAt: reportObj.updatedAt
+      };
+    });
 
     return {
-      reports,
+      reports: transformedReports,
       pagination: {
         current: page,
         total: Math.ceil(total / limit),
@@ -333,7 +361,6 @@ export class ReportsService {
         }
         break;
     }
-
     // Cập nhật report
     const updatedReport = await this.reportModel.findByIdAndUpdate(
       reportId,
@@ -343,13 +370,43 @@ export class ReportsService {
         reviewedAt: new Date(),
       },
       { new: true }
-    ).exec();
+    )
+    .populate('postId', 'caption imageUrl createdAt')
+    .populate('reporterId', 'fullName email avatar')
+    .populate('reviewedBy', 'fullName email')
+    .exec();
 
     if (!updatedReport) {
       throw new NotFoundException('Report not found');
     }
-
-    return updatedReport;
+    // Transform the response to match frontend expectations
+    const reportObj = updatedReport.toObject() as any;
+    return {
+      id: reportObj._id.toString(),
+      postId: reportObj.postId ? {
+        id: reportObj.postId._id?.toString() || reportObj.postId.toString(),
+        caption: reportObj.postId.caption,
+        imageUrl: reportObj.postId.imageUrl,
+        createdAt: reportObj.postId.createdAt
+      } : null,
+      reporterId: reportObj.reporterId ? {
+        id: reportObj.reporterId._id?.toString() || reportObj.reporterId.toString(),
+        fullName: reportObj.reporterId.fullName,
+        email: reportObj.reporterId.email,
+        avatar: reportObj.reporterId.avatar
+      } : null,
+      reason: reportObj.reason,
+      description: reportObj.description,
+      status: reportObj.status,
+      aiConfidenceScore: reportObj.aiConfidenceScore,
+      aiPrediction: reportObj.aiPrediction,
+      autoResolved: reportObj.autoResolved,
+      reviewedBy: reportObj.reviewedBy,
+      reviewedAt: reportObj.reviewedAt,
+      reviewComment: reportObj.reviewComment,
+      createdAt: reportObj.createdAt,
+      updatedAt: reportObj.updatedAt
+    } as any;
   }
 
   /**

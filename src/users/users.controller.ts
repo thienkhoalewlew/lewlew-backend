@@ -1,14 +1,11 @@
-import { Body, Controller, Get, Patch, Query, Req, UseGuards, NotFoundException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { Body, Controller, Get, Patch, Query, Req, UseGuards, NotFoundException, BadRequestException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiHeader } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CurrentUserProfileDto } from './dto/user-profile.dto';
-import { UpdateAvatarDto } from './dto/update-avatar.dto'
-import { UpdatePasswordDto } from './dto/update-password.dto';
-import { UpdateSettingsDto } from './dto/update-settings.dto';
-import { UpdateFullnameDto } from './dto/update-fullname.dto';
-import { UpdateUsernameDto } from './dto/update-username.dto';
-import { UpdateBioDto } from './dto/update-bio.dto';
+import { UpdateProfileDto, UpdateType } from './dto/update-profile.dto';
+import { 
+  UpdateSettingsType
+} from './interfaces/update-types';
 
 @ApiTags('Users')
 @Controller('users')
@@ -35,59 +32,66 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Patch('update_avatar')
+  @Patch('update_profile')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update user avatar' })
-  @ApiResponse({ status: 200, description: 'Avatar updated successfully' })
-  async updateAvatar(@Req() req, @Body() dto: UpdateAvatarDto) {
-    await this.userService.updateAvatar(req.user.userId, dto.avatar);
-    return { message: 'Avatar updated successfully' };
-  }
+  @ApiOperation({ summary: 'Update user profile with different update types' })
+  @ApiResponse({ status: 200, description: 'Profile updated successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  async updateProfile(@Req() req, @Body() dto: UpdateProfileDto) {
+    const userId = req.user.userId;
 
-  @UseGuards(JwtAuthGuard)
-  @Patch('update_password')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update password' })
-  @ApiResponse({ status: 200, description: 'Password updated successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid current password' })
-  async updatePassword(@Req() req, @Body() dto: UpdatePasswordDto) {
-    await this.userService.updatePassword(req.user.userId, dto);
-    return { message: 'Password updated successfully' };
-  }
+    switch (dto.updateType) {
+      case UpdateType.AVATAR:
+        if (!dto.avatar) {
+          throw new BadRequestException('Avatar URL is required for avatar update');
+        }
+        await this.userService.updateAvatar(userId, dto.avatar);
+        return { message: 'Cập nhật ảnh đại diện thành công' };
 
-  @UseGuards(JwtAuthGuard)
-  @Patch('update_fullname')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update full name' })
-  async updateFullname(@Req() req, @Body() dto: UpdateFullnameDto) {
-    await this.userService.updateFullname(req.user.userId, dto);
-    return { message: 'Full name updated successfully' };
-  }
+      case UpdateType.PASSWORD:
+        if (!dto.currentPassword || !dto.newPassword) {
+          throw new BadRequestException('Current password and new password are required for password update');
+        }
+        await this.userService.updatePassword(userId, {
+          currentPassword: dto.currentPassword,
+          newPassword: dto.newPassword
+        });
+        return { message: 'Cập nhật mật khẩu thành công' };
 
-  @UseGuards(JwtAuthGuard)
-  @Patch('update_username')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update username' })
-  async updateUsername(@Req() req, @Body() dto: UpdateUsernameDto) {
-    await this.userService.updateUsername(req.user.userId, dto);
-    return { message: 'Username updated successfully' };
-  }
+      case UpdateType.FULLNAME:
+        if (!dto.fullname) {
+          throw new BadRequestException('Fullname is required for fullname update');
+        }
+        await this.userService.updateFullname(userId, { fullname: dto.fullname });
+        return { message: 'Cập nhật họ tên thành công' };
 
-  @UseGuards(JwtAuthGuard)
-  @Patch('update_bio')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update user bio' })
-  async updateBio(@Req() req, @Body() dto: UpdateBioDto) {
-    await this.userService.updateBio(req.user.userId, dto);
-    return { message: 'Bio updated successfully' };
-  }
+      case UpdateType.USERNAME:
+        if (!dto.username) {
+          throw new BadRequestException('Username is required for username update');
+        }
+        await this.userService.updateUsername(userId, { username: dto.username });
+        return { message: 'Cập nhật tên người dùng thành công' };
 
-  @UseGuards(JwtAuthGuard)
-  @Patch('update_settings')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update user settings' })
-  async updateSettings(@Req() req, @Body() dto: UpdateSettingsDto) {
-    await this.userService.updateSettings(req.user.userId, dto);
-    return { message: 'Settings updated successfully' };
+      case UpdateType.BIO:
+        if (dto.bio === undefined) {
+          throw new BadRequestException('Bio is required for bio update');
+        }
+        await this.userService.updateBio(userId, { bio: dto.bio });
+        return { message: 'Cập nhật tiểu sử thành công' };
+
+      case UpdateType.SETTINGS:
+        const settings: UpdateSettingsType = {};
+        if (dto.notificationRadius !== undefined) {
+          settings.notificationRadius = dto.notificationRadius;
+        }
+        if (dto.language !== undefined) {
+          settings.language = dto.language;
+        }
+        await this.userService.updateSettings(userId, settings);
+        return { message: 'Cập nhật cài đặt thành công' };
+
+      default:
+        throw new BadRequestException('Invalid update type');
+    }
   }
 }

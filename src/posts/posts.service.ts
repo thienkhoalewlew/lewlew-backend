@@ -5,16 +5,22 @@ import { Post, PostDocument } from './schemas/post.schema';
 import { CreatePostDto } from './dto/create-post.dto';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { Upload, UploadDocument } from '../uploads/schemas/upload.schema';
+import { Comment, CommentDocument } from '../comments/schemas/comment.schema';
+import { Report, ReportDocument } from '../reports/schemas/report.schema';
 import { NotificationHelperService } from '../notifications/notification-helper.service';
 import { UploadsService } from '../uploads/uploads.service';
+import { LikesService } from '../likes/likes.service';
 
 @Injectable()
 export class PostsService {  constructor(
     @InjectModel(Post.name) private postModel: Model<PostDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Upload.name) private uploadModel: Model<UploadDocument>,
+    @InjectModel(Comment.name) private commentModel: Model<CommentDocument>,
+    @InjectModel(Report.name) private reportModel: Model<ReportDocument>,
     private readonly notificationHelper: NotificationHelperService,
     private readonly uploadsService: UploadsService,
+    private readonly likesService: LikesService,
   ) {}
   async create(createPostDto: CreatePostDto, user: any): Promise<Post> {
     const expiresAt = createPostDto.expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000); // Default 24 hours
@@ -58,7 +64,7 @@ export class PostsService {  constructor(
     
     return savedPost;
   }
-  async findByUser(userId: string, includeExpired: boolean = false, includeDeleted: boolean = false): Promise<Post[]> {
+  async findByUser(userId: string, includeExpired: boolean = false, includeDeleted: boolean = false, currentUserId?: string): Promise<Post[]> {
     console.log('Finding posts for user:', userId, 'includeExpired:', includeExpired, 'includeDeleted:', includeDeleted);
     
     // Base query to find posts by user
@@ -114,12 +120,12 @@ export class PostsService {  constructor(
           console.error('Error fetching upload info for post:', post.id, error);
           return post.toObject();
         }
-      })
-    );
+      })    );    // Add like status to posts for findByUser
+    const postsWithLikeStatus = await this.addLikeStatusToPosts(enhancedPosts, currentUserId);
 
-    return enhancedPosts as Post[];
+    return postsWithLikeStatus as Post[];
   }
-  async findNearby(lat: number, lng: number, radius: number = 10): Promise<Post[]> {
+  async findNearby(lat: number, lng: number, radius: number = 10, userId?: string): Promise<Post[]> {
     // Convert radius from km to radians (Earth radius is approximately 6371 km)
     const radiusInRadians = radius / 6371;
     
@@ -167,10 +173,12 @@ export class PostsService {  constructor(
           console.error('Error fetching upload info for post:', post.id, error);
           return post.toObject();
         }
-      })
-    );
+      })    );
 
-    return enhancedPosts as Post[];
+    // Add like status to posts for findNearby
+    const postsWithLikeStatus = await this.addLikeStatusToPosts(enhancedPosts, userId);
+
+    return postsWithLikeStatus as Post[];
   }
   async findByFriends(userId: string): Promise<Post[]> {
     // Tìm người dùng qua ID
@@ -224,76 +232,22 @@ export class PostsService {  constructor(
           console.error('Error fetching upload info for post:', post.id, error);
           return post.toObject();
         }
-      })
-    );
+      })    );
 
-    return enhancedPosts as Post[];
-  }
-  async like(postId: string, user: any): Promise<Post> {
-    const post = await this.postModel.findOne({ 
-      _id: postId, 
-      isDeleted: { $ne: true } 
-    });
-    if (!post) {
-      throw new NotFoundException('Post not found or has been deleted');
-    }
-    
-    // Get userId from JWT payload (user.userId from JWT strategy)
+    // Add like status to posts for findByFriends
+    const postsWithLikeStatus = await this.addLikeStatusToPosts(enhancedPosts, userId);
+
+    return postsWithLikeStatus as Post[];
+  }  // Delegate like functionality to LikesService
+  async like(postId: string, user: any): Promise<any> {
     const userId = user.userId || user._id || user.id;
-    if (!userId) {
-      throw new BadRequestException('Invalid user identification');
-    }
-      // Check if user already liked the post
-    const alreadyLiked = post.likes && post.likes.some(likeUserId => 
-      likeUserId && likeUserId.toString() === userId.toString());
-    if (alreadyLiked) {
-      throw new BadRequestException('User already liked this post');
-    }
-    
-    // Add user to likes array and increment likeCount
-    post.likes = [...(post.likes || []), userId];
-    post.likeCount = (post.likeCount || 0) + 1;
-
-    const savedPost = await post.save();
-
-    const postAuthorId = post.user.toString();
-    const likerId = userId.toString();
-
-    if(postAuthorId !== likerId) {
-      await this.notificationHelper.createPostLikeNotification(
-        likerId,
-        postAuthorId,
-        postId
-      );
-    }
-    return savedPost
+    return this.likesService.likePost({ postId }, userId);
   }
-  async unlike(postId: string, user: any): Promise<Post> {
-    const post = await this.postModel.findOne({ 
-      _id: postId, 
-      isDeleted: { $ne: true } 
-    });
-    if (!post) {
-      throw new NotFoundException('Post not found or has been deleted');
-    }
-    
-    // Get userId from JWT payload (user.userId from JWT strategy)
+
+  // Delegate unlike functionality to LikesService
+  async unlike(postId: string, user: any): Promise<void> {
     const userId = user.userId || user._id || user.id;
-    if (!userId) {
-      throw new BadRequestException('Invalid user identification');
-    }
-      // Check if user liked the post
-    const likedIndex = post.likes ? post.likes.findIndex(likeUserId => 
-      likeUserId && likeUserId.toString() === userId.toString()) : -1;
-    if (likedIndex === -1) {
-      throw new BadRequestException('User has not liked this post');
-    }
-    
-    // Remove user from likes array and decrement likeCount
-    post.likes.splice(likedIndex, 1);
-    post.likeCount = Math.max(0, (post.likeCount || 1) - 1);
-    
-    return post.save();
+    return this.likesService.unlikePost(postId, userId);
   }
   async deletePost(postId: string, userId: string, reason: string = 'Deleted by user'): Promise<void> {
     const post = await this.postModel.findOne({ 
@@ -316,7 +270,6 @@ export class PostsService {  constructor(
     
     console.log(`🗑️ Post ${postId} soft deleted by user ${userId}. Reason: ${reason}`);
   }
-
   /**
    * Admin method to permanently delete a post (hard delete)
    * Only use this when absolutely necessary
@@ -327,8 +280,32 @@ export class PostsService {  constructor(
       throw new NotFoundException('Post not found');
     }
 
-    await post.deleteOne();
-    console.log(`🔥 Post ${postId} permanently deleted by admin ${adminUserId}`);
+    console.log(`🔥 Starting permanent deletion of post ${postId} by admin ${adminUserId}`);
+
+    try {
+      // 1. Delete all comments related to this post
+      const deletedComments = await this.commentModel.deleteMany({ post: postId });
+      console.log(`🔥 Deleted ${deletedComments.deletedCount} comments for post ${postId}`);
+
+      // 2. Delete all reports related to this post
+      const deletedReports = await this.reportModel.deleteMany({ postId: postId });
+      console.log(`🔥 Deleted ${deletedReports.deletedCount} reports for post ${postId}`);
+
+      // 3. Delete upload records related to this post
+      const deletedUploads = await this.uploadModel.deleteMany({ 
+        'metadata.postId': postId,
+        'metadata.type': 'post_image'
+      });
+      console.log(`🔥 Deleted ${deletedUploads.deletedCount} upload records for post ${postId}`);
+
+      // 4. Finally, delete the post itself
+      await post.deleteOne();
+      console.log(`🔥 Post ${postId} and all related data permanently deleted by admin ${adminUserId}`);
+      
+    } catch (error) {
+      console.error(`🔥 Error during permanent deletion of post ${postId}:`, error);
+      throw error;
+    }
   }
   /**
    * Soft delete a post due to report violation
@@ -432,6 +409,52 @@ export class PostsService {  constructor(
     } catch (error) {
       console.error('Error fetching upload info for post:', post.id, error);
       return post.toObject() as Post;
+    }
+  }
+  // Helper method to add like status to posts
+  private async addLikeStatusToPosts(posts: any[], userId?: string): Promise<any[]> {
+    if (!userId) {
+      return posts.map(post => ({
+        ...post,
+        isLiked: false,
+        // Ensure commentCount is included (fallback to 0 if not present)
+        commentCount: post.commentCount || 0
+      }));
+    }
+
+    return Promise.all(posts.map(async (post) => {
+      const isLiked = await this.likesService.checkUserLikedPost(post._id || post.id, userId);
+      return {
+        ...post,
+        isLiked,
+        // Ensure commentCount is included (fallback to 0 if not present)
+        commentCount: post.commentCount || 0
+      };
+    }));
+  }
+  /**
+   * Recalculate comment count for all posts
+   * This method should be called to sync existing data
+   */
+  async recalculateCommentCounts(): Promise<void> {
+    console.log('🔄 Starting comment count recalculation for all posts...');
+    
+    try {
+      const posts = await this.postModel.find({ isDeleted: { $ne: true } }).exec();
+      
+      for (const post of posts) {
+        const actualCommentCount = await this.commentModel.countDocuments({ post: post._id }).exec();
+        
+        if (post.commentCount !== actualCommentCount) {
+          console.log(`📊 Updating comment count for post ${post._id}: ${post.commentCount} -> ${actualCommentCount}`);
+          await this.postModel.findByIdAndUpdate(post._id, { commentCount: actualCommentCount });
+        }
+      }
+      
+      console.log('✅ Comment count recalculation completed');
+    } catch (error) {
+      console.error('❌ Error during comment count recalculation:', error);
+      throw error;
     }
   }
 }

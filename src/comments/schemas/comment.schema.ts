@@ -14,12 +14,8 @@ export class Comment {
   user: User;
   @Prop({ required: false })
   text: string;
-
   @Prop({ required: false })
   image: string;
-
-  @Prop({ type: [{ type: MongooseSchema.Types.ObjectId, ref: 'User' }] })
-  likes: User[];
 
   @Prop({ default: 0 })
   likeCount: number;

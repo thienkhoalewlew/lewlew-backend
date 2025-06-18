@@ -11,10 +11,10 @@ import { CommentsModule } from './comments/comments.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { NotificationsModule } from './notifications/notifications.module';
-import { Socket } from 'socket.io';
 import { SocketModule } from './socket/socket.module';
-import { MigrationsModule } from './migrations/migrations.module';
 import { ReportsModule } from './reports/reports.module';
+import { AdminModule } from './admin/admin.module';
+import { LikesModule } from './likes/likes.module';
 
 @Module({
   imports: [
@@ -40,8 +40,9 @@ import { ReportsModule } from './reports/reports.module';
     UploadsModule,
     NotificationsModule,
     SocketModule,
-    MigrationsModule,
     ReportsModule,
+    AdminModule,
+    LikesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

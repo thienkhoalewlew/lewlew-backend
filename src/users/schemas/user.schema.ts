@@ -5,8 +5,11 @@ export type UserDocument = User & Document;
 
 @Schema({ timestamps: true })
 export class User {
-  @Prop({ required: false, unique: true, sparse: true })
-  username: string;
+  @Prop({ 
+    required: false,
+    default: undefined
+  })
+  username?: string;
 
   @Prop({ required: true })
   fullName: string;
@@ -31,6 +34,9 @@ export class User {
 
   @Prop({ default: false })
   isTemporary: boolean;
+
+  @Prop({ default: false })
+  isAdmin: boolean;
 
   @Prop({ required: false })
   bio?: string;
@@ -87,6 +93,7 @@ export const UserSchema = SchemaFactory.createForClass(User);
 
 // Thêm indexes
 UserSchema.index({ 'location.coordinates': '2dsphere' });
+UserSchema.index({ username: 1 }, { unique: true, sparse: true });
 
 UserSchema.set('toJSON', {
   transform: (doc, ret) => {

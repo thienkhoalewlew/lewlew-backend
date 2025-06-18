@@ -75,18 +75,18 @@ export class ReportsController {
             postId: {
               id: '6571a2d3e87cf87df032a9b2',
               caption: 'Sample post content',
-              imageUrl: 'https://example.com/image.jpg'
+              imageUrl: null
             },
             reporterId: {
-              id: '6571a2d3e87cf87df032a9b1',
-              fullName: 'John Doe',
-              email: 'john@example.com'
+              id: 'user_id_example',
+              fullName: 'User Name',
+              email: 'user@domain.com'
             },
             reason: 'spam',
             status: 'pending',
-            aiConfidenceScore: 0.85,
-            aiPrediction: 'High confidence spam detection',
-            createdAt: '2025-06-08T10:30:00.000Z'
+            aiConfidenceScore: 0,
+            aiPrediction: 'AI prediction example',
+            createdAt: '2025-01-01T00:00:00.000Z'
           }
         ],
         pagination: {
@@ -132,15 +132,96 @@ export class ReportsController {
   async getReportStats() {
     return this.reportsService.getReportStats();
   }
-
   @Get('my-reports')
   @ApiOperation({ summary: 'Get current user reports' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({ 
     status: HttpStatus.OK, 
-    description: 'User reports with pagination' 
+    description: 'User reports with pagination',
+    schema: {
+      example: {
+        reports: [
+          {
+            id: '64f1a2b3c4d5e6f7a8b9c0d1',
+            postId: {
+              id: '6571a2d3e87cf87df032a9b2',
+              caption: 'This is a spam post promoting fake products',
+              imageUrl: null,
+              user: {
+                id: '6571a2d3e87cf87df032a9b3',
+                fullName: 'Spam User',
+                username: 'spamuser123'
+              },
+              createdAt: '2025-06-08T10:00:00.000Z'            },
+            reason: 'spam',
+            description: 'Report description example',
+            status: 'pending',
+            aiConfidenceScore: 0,
+            aiPrediction: 'AI prediction example',
+            aiAnalysis: {
+              textAnalysis: {
+                toxicity: 0,
+                spam: 0,
+                inappropriateContent: 0,
+                hateSpeech: 0
+              },
+              metadata: {
+                analyzedAt: '2025-01-01T00:00:00.000Z',
+                model: 'ai-model-name'
+              }
+            },
+            createdAt: '2025-06-08T10:30:00.000Z',
+            updatedAt: '2025-06-08T10:30:00.000Z'
+          },
+          {
+            id: '64f1a2b3c4d5e6f7a8b9c0d2',
+            postId: {
+              id: '6571a2d3e87cf87df032a9b4',
+              caption: 'Inappropriate content that violates guidelines',
+              imageUrl: null,
+              user: {
+                id: '6571a2d3e87cf87df032a9b5',
+                fullName: 'Another User',
+                username: 'anotheruser'            },
+              createdAt: '2025-01-01T00:00:00.000Z'
+            },
+            reason: 'inappropriate_content',
+            description: 'Report description example',
+            status: 'resolved',
+            aiConfidenceScore: 0,
+            aiPrediction: 'AI prediction example',
+            aiAnalysis: {
+              textAnalysis: {
+                toxicity: 0,
+                spam: 0,
+                inappropriateContent: 0,
+                hateSpeech: 0
+              },
+              metadata: {
+                analyzedAt: '2025-01-01T00:00:00.000Z',
+                model: 'ai-model-name'
+              }
+            },
+            reviewedBy: 'reviewer_id_example',
+            reviewedAt: '2025-06-08T09:00:00.000Z',
+            reviewComment: 'Post has been reviewed and removed for violating community guidelines',
+            createdAt: '2025-06-07T15:35:00.000Z',
+            updatedAt: '2025-06-08T09:00:00.000Z'
+          }
+        ],
+        pagination: {
+          current: 1,
+          total: 5,
+          count: 2,
+          limit: 10,
+          hasNext: false,
+          hasPrev: false
+        }
+      }
+    }
   })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized access' })
   async getUserReports(
     @Req() req,
     @Query('page') page: number = 1,
@@ -157,36 +238,36 @@ export class ReportsController {
     description: 'Report details',
     schema: {
       example: {
-        id: '64f1a2b3c4d5e6f7a8b9c0d1',
+        id: 'report_id_example',
         postId: {
-          id: '6571a2d3e87cf87df032a9b2',
-          caption: 'Sample post content',
-          imageUrl: 'https://example.com/image.jpg',
-          user: '6571a2d3e87cf87df032a9b3'
+          id: 'post_id_example',
+          caption: 'Post content example',
+          imageUrl: null,
+          user: 'user_id_example'
         },
         reporterId: {
-          id: '6571a2d3e87cf87df032a9b1',
-          fullName: 'John Doe',
-          email: 'john@example.com'
+          id: 'user_id_example',
+          fullName: 'User Name',
+          email: 'user@domain.com'
         },
         reason: 'spam',
-        description: 'This post contains spam content',
+        description: 'Report description example',
         status: 'pending',
-        aiConfidenceScore: 0.85,
-        aiPrediction: 'High confidence spam detection',
+        aiConfidenceScore: 0,
+        aiPrediction: 'AI prediction example',
         aiAnalysis: {
           textAnalysis: {
-            toxicity: 0.1,
-            spam: 0.9,
-            inappropriateContent: 0.2,
-            hateSpeech: 0.1
+            toxicity: 0,
+            spam: 0,
+            inappropriateContent: 0,
+            hateSpeech: 0
           },
           metadata: {
-            analyzedAt: '2025-06-08T10:31:00.000Z',
-            model: 'simple-ai-v1.0'
+            analyzedAt: '2025-01-01T00:00:00.000Z',
+            model: 'ai-model-name'
           }
         },
-        createdAt: '2025-06-08T10:30:00.000Z'
+        createdAt: '2025-01-01T00:00:00.000Z'
       }
     }
   })
@@ -194,7 +275,6 @@ export class ReportsController {
   async getReportById(@Param('id') id: string) {
     return this.reportsService.getReportById(id);
   }
-
   @Put(':id/status')
   @ApiOperation({ summary: 'Update report status (Admin only)' })
   @ApiParam({ name: 'id', description: 'Report ID' })
@@ -209,8 +289,7 @@ export class ReportsController {
         reviewedAt: '2025-06-08T11:00:00.000Z',
         reviewComment: 'Report reviewed and post removed'
       }
-    }
-  })
+    }  })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Report not found' })
   async updateReportStatus(
     @Param('id') id: string,
@@ -218,46 +297,5 @@ export class ReportsController {
     @Req() req
   ) {
     return this.reportsService.updateReportStatus(id, updateDto, req.user.userId);
-  }
-
-  /**
-   * Test AI analysis with a sample image (Admin only)
-   */
-  @Post('test-analysis')
-  @ApiOperation({ 
-    summary: 'Test AI analysis with sample content',
-    description: 'Test AI image analysis with sample content. Admin only.'
-  })
-  @ApiResponse({ status: 200, description: 'Analysis results returned' })
-  async testAIAnalysis(
-    @Body() testData: {
-      imageUrl: string;
-      reportReason?: string;
-    },
-    @Req() req: any
-  ) {
-    // Check if user is admin (implement your admin check logic)
-    // if (!req.user.isAdmin) {
-    //   throw new ForbiddenException('Admin access required');
-    // }
-
-    try {
-      const result = await this.aiAnalystService.analyzeImage(
-        testData.imageUrl,
-        testData.reportReason || 'other'
-      );
-
-      return {
-        success: true,
-        data: result,
-        timestamp: new Date()
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message,
-        timestamp: new Date()
-      };
-    }
   }
 }

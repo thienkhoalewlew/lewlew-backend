@@ -5,13 +5,16 @@ import { Model } from 'mongoose';
 import { User } from './schemas/user.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { CurrentUserProfileDto, OtherUserProfileDto } from './dto/user-profile.dto';
-import { UpdatePasswordDto } from './dto/update-password.dto';
-import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { UploadsService } from '../uploads/uploads.service';
 import * as bcrypt from 'bcrypt';
-import { UpdateFullnameDto } from './dto/update-fullname.dto';
-import { UpdateUsernameDto } from './dto/update-username.dto';
-import { UpdateBioDto } from './dto/update-bio.dto';
+import { UpdateProfileDto, UpdateType } from './dto/update-profile.dto';
+import { 
+  UpdatePasswordType,
+  UpdateFullnameType,
+  UpdateUsernameType,
+  UpdateBioType,
+  UpdateSettingsType
+} from './interfaces/update-types';
 
 @Injectable()
 export class UsersService {
@@ -164,7 +167,7 @@ export class UsersService {
     }
   }
 
-  async updatePassword(userId: string, dto: UpdatePasswordDto): Promise<void> {
+  async updatePassword(userId: string, dto: UpdatePasswordType): Promise<void> {
     const user = await this.userModel.findOne({
       _id: userId,
       $or: [
@@ -189,7 +192,7 @@ export class UsersService {
     await user.save();
   }
 
-  async updateFullname(userId: string, dto: UpdateFullnameDto): Promise<void> {
+  async updateFullname(userId: string, dto: UpdateFullnameType): Promise<void> {
     const user = await this.userModel.findOne({
       _id: userId,
       $or: [
@@ -206,7 +209,12 @@ export class UsersService {
     await user.save();
   }
 
-  async updateUsername(userId: string, dto: UpdateUsernameDto): Promise<void> {
+  async updateUsername(userId: string, dto: UpdateUsernameType): Promise<void> {
+    // Validate username format
+    if (!dto.username || dto.username.trim().length === 0) {
+      throw new BadRequestException('Username cannot be empty');
+    }
+
     const user = await this.userModel.findOne({
       _id: userId,
       $or: [
@@ -219,9 +227,9 @@ export class UsersService {
       throw new NotFoundException(`Cannot find user with id: ${userId}`);
     }
 
-    // Check if username already exists (exclude temporary users)
+    // Check if username already exists (exclude current user and temporary users)
     const existingUser = await this.userModel.findOne({ 
-      username: dto.username,
+      username: dto.username.trim(),
       _id: { $ne: userId },
       $or: [
         { isTemporary: { $exists: false } },
@@ -233,11 +241,25 @@ export class UsersService {
       throw new ConflictException('Username already exists');
     }
 
-    user.username = dto.username;
-    await user.save();
+    // Use findOneAndUpdate to avoid potential race conditions
+    const updatedUser = await this.userModel.findOneAndUpdate(
+      { 
+        _id: userId,
+        $or: [
+          { isTemporary: { $exists: false } },
+          { isTemporary: false }
+        ]
+      },
+      { $set: { username: dto.username.trim() } },
+      { new: true }
+    ).exec();
+
+    if (!updatedUser) {
+      throw new NotFoundException(`Cannot update user with id: ${userId}`);
+    }
   }
 
-  async updateBio(userId: string, dto: UpdateBioDto): Promise<void> {
+  async updateBio(userId: string, dto: UpdateBioType): Promise<void> {
     const user = await this.userModel.findOne({
       _id: userId,
       $or: [
@@ -254,7 +276,7 @@ export class UsersService {
     await user.save();
   }
 
-  async updateSettings(userId: string, settings: UpdateSettingsDto): Promise<void> {
+  async updateSettings(userId: string, settings: UpdateSettingsType): Promise<void> {
     const user = await this.userModel.findOne({
       _id: userId,
       $or: [
