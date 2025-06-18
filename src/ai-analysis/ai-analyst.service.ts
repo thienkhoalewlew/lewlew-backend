@@ -122,7 +122,8 @@ export class AiAnalystService {
       }
       
       // Xác định nếu ảnh vi phạm chính sách dựa trên lý do báo cáo
-      let isViolation = false;      let confidence = 0;
+      let isViolation = false;
+      let confidence = 0;
       let violationType = '';
       let message = '';
 

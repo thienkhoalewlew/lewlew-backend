@@ -444,12 +444,23 @@ export class AdminService {
           userIds: { $addToSet: '$user' },
           lastActivity: { $max: '$createdAt' }
         }
-      },
-      {
+      },      {
         $addFields: {
           userCount: { $size: '$userIds' },
-          averageLikes: { $divide: ['$totalLikes', '$postCount'] },
-          engagementRate: { $multiply: [{ $divide: ['$totalLikes', '$postCount'] }, 10] }
+          averageLikes: { 
+            $cond: [
+              { $eq: ["$postCount", 0] },
+              0,
+              { $divide: ['$totalLikes', '$postCount'] }
+            ]
+          },
+          engagementRate: { 
+            $cond: [
+              { $eq: ["$postCount", 0] },
+              0,
+              { $multiply: [{ $divide: ['$totalLikes', '$postCount'] }, 10] }
+            ]
+          }
         }
       },
       {
@@ -460,14 +471,13 @@ export class AdminService {
       }
     ];
 
-    const results = await this.postModel.aggregate(pipeline as any);
-      return results.map(location => ({
-      locationName: location._id,
-      coordinates: location.coordinates || [0, 0],
+    const results = await this.postModel.aggregate(pipeline as any);      return results.map(location => ({
+      locationName: location._id || 'Unknown Location',
+      coordinates: Array.isArray(location.coordinates) ? location.coordinates : [0, 0],
       postCount: location.postCount || 0,
       userCount: location.userCount || 0,
-      engagementRate: location.engagementRate ? parseFloat(location.engagementRate.toFixed(1)) : 0,
-      averageLikes: location.averageLikes ? parseFloat(location.averageLikes.toFixed(1)) : 0,
+      engagementRate: typeof location.engagementRate === 'number' ? parseFloat(location.engagementRate.toFixed(1)) : 0,
+      averageLikes: typeof location.averageLikes === 'number' ? parseFloat(location.averageLikes.toFixed(1)) : 0,
       averageComments: 0, // Will be calculated separately if needed
       lastActivity: location.lastActivity || new Date()
     }));
