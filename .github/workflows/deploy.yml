@@ -1,0 +1,28 @@
+name: Deploy to Production Server
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Deploy to server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: 14.225.192.117
+        username: root
+        port: 22
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          cd /var/www/lewlew-backend/
+          git pull
+          npm i
+          npm run build
+          pm2 restart 0
