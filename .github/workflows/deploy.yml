@@ -8,6 +8,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: Khoa
     
     steps:
     - name: Checkout code
@@ -22,6 +23,7 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
           cd /var/www/lewlew-backend/
+          pwd
           git pull
           npm i
           npm run build
