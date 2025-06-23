@@ -160,13 +160,12 @@ export class ReportsService {
         (post._id as any).toString(),
         'Your post has been automatically removed due to policy violations detected by our AI system.'
       );
-
       // Gửi thông báo cho người report
       if (reporter) {
         await this.notificationHelper.createReportApprovedNotification(
           reporter._id.toString(),
           (post._id as any).toString(),
-          this.getReasonDisplayText(report.reason)
+          report.reason
         );
       }
 
@@ -328,12 +327,11 @@ export class ReportsService {
             (post._id as any).toString(),
             updateDto.reviewComment || 'Your post has been removed due to policy violations.'
           );
-
           // Thông báo cho người report
           await this.notificationHelper.createReportApprovedNotification(
             reporter._id.toString(),
             (post._id as any).toString(),
-            this.getReasonDisplayText(report.reason)
+            report.reason
           );
         }
         break;
@@ -344,23 +342,23 @@ export class ReportsService {
           await this.notificationHelper.createReportRejectedNotification(
             reporter._id.toString(),
             (post._id as any).toString(),
-            this.getReasonDisplayText(report.reason),
+            report.reason,
             updateDto.reviewComment
           );
         }
         break;
-
-      case ReportStatus.REVIEWING:
+        case ReportStatus.REVIEWING:
         // Thông báo cho người report khi đang xem xét
         if (post && reporter) {
           await this.notificationHelper.createReportUnderReviewNotification(
             reporter._id.toString(),
             (post._id as any).toString(),
-            this.getReasonDisplayText(report.reason)
+            report.reason
           );
         }
         break;
     }
+    
     // Cập nhật report
     const updatedReport = await this.reportModel.findByIdAndUpdate(
       reportId,

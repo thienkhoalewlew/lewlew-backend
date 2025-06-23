@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { NotificationsService } from "./notifications.service";
+import { ReportReason } from "../reports/schemas/report.schema";
 
 @Injectable()
 export class NotificationHelperService {
@@ -8,8 +9,7 @@ export class NotificationHelperService {
             recipientId,
             senderId,
             type: 'friend_request',
-            message: 'đã gửi lời mời kết bạn cho bạn',
-
+            message: 'friendRequest',
         });
     }
 
@@ -18,11 +18,9 @@ export class NotificationHelperService {
             recipientId,
             senderId,
             type: 'friend_accept',
-            message: 'đã chấp nhận lời mời kết bạn của bạn',
+            message: 'friendAccept',
         });
-    }
-
-    async createPostLikeNotification(
+    }    async createPostLikeNotification(
         senderId: string,
         recipientId: string,
         postId: string
@@ -31,7 +29,7 @@ export class NotificationHelperService {
             recipientId,
             senderId,
             type: 'like',
-            message: 'đã thích bài viết của bạn',
+            message: 'postLike',
             postId,
         });
     }
@@ -46,12 +44,11 @@ export class NotificationHelperService {
             recipientId,
             senderId,
             type: 'comment',
-            message: 'đã bình luận bài viết của bạn',
+            message: 'postComment',
             postId,
             commentId,
         });
     }
-
     async createNearbyPostNotification(
         senderId: string,
         recipientId: string,
@@ -61,7 +58,7 @@ export class NotificationHelperService {
             recipientId,
             senderId,
             type: 'nearby_post',
-            message: 'đã đăng bài gần bạn',
+            message: 'nearbyPost',
             postId,
         });
     }
@@ -75,10 +72,12 @@ export class NotificationHelperService {
             recipientId,
             senderId,
             type: 'friend_post',
-            message: 'đã đăng bài viết mới',
+            message: 'friendPost',
             postId,
         });
-    }async createCommentLikeNotification(
+    }
+
+    async createCommentLikeNotification(
         senderId: string,
         recipientId: string,
         postId: string,
@@ -88,7 +87,7 @@ export class NotificationHelperService {
             recipientId,
             senderId,
             type: 'comment_like',
-            message: 'đã thích bình luận của bạn',
+            message: 'commentLike',
             postId,
             commentId,
         });
@@ -105,59 +104,54 @@ export class NotificationHelperService {
             postId,
         });
     }
-
     /**
      * Thông báo cho người report khi report được chấp nhận (post bị xóa)
      */    async createReportApprovedNotification(
         reporterId: string,
         postId: string,
-        reportReason: string
+        reportReason: ReportReason | string
     ): Promise<void> {
         await this.notificationService.createNotification({
             recipientId: reporterId,
             senderId: undefined, // System notification
             type: 'report_approved',
-            message: `Báo cáo của bạn về "${reportReason}" đã được xem xét và nội dung đã bị xóa. Cảm ơn bạn đã giúp giữ cộng đồng an toàn.`,
+            message: `reportApproved|${reportReason}`,
             postId,
         });
-    }
-
-    /**
+    }    /**
      * Thông báo cho người report khi report bị từ chối
      */
     async createReportRejectedNotification(
         reporterId: string,
         postId: string,
-        reportReason: string,
+        reportReason: ReportReason | string,
         adminNotes?: string
     ): Promise<void> {
-        const baseMessage = `Báo cáo của bạn về "${reportReason}" đã được xem xét và được xác định không vi phạm quy tắc cộng đồng của chúng tôi.`;
-        const fullMessage = adminNotes 
-            ? `${baseMessage} Ghi chú của quản trị viên: ${adminNotes}`
-            : baseMessage;
+        // Encode data into message format: messageKey|reportReason|adminNotes
+        const messageData = adminNotes 
+            ? `reportRejected|${reportReason}|${adminNotes}`
+            : `reportRejected|${reportReason}`;
 
         await this.notificationService.createNotification({
             recipientId: reporterId,
             senderId: undefined, // System notification
             type: 'report_rejected',
-            message: fullMessage,
+            message: messageData,
             postId,
         });
-    }
-
-    /**
+    }    /**
      * Thông báo cho người report khi report đang được xem xét
      */
     async createReportUnderReviewNotification(
         reporterId: string,
         postId: string,
-        reportReason: string
+        reportReason: ReportReason | string
     ): Promise<void> {
         await this.notificationService.createNotification({
             recipientId: reporterId,
             senderId: undefined, // System notification
             type: 'report_under_review',
-            message: `Báo cáo của bạn về "${reportReason}" đang được nhóm kiểm duyệt xem xét. Chúng tôi sẽ thông báo khi có kết quả.`,
+            message: `reportUnderReview|${reportReason}`,
             postId,
         });
     }

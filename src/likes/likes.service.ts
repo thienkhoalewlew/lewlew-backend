@@ -41,11 +41,12 @@ export class LikesService {
 
     if (existingLike) {
       throw new ConflictException('User already liked this post');
-    }    // Tạo like mới
+    }
+    // Tạo like mới cho post (không set comment field)
     const likeData = {
       post: postId,
       user: userId,
-      likeType: 'post',
+      likeType: 'post' as const,
       likedAt: new Date()
     };
     
@@ -125,12 +126,11 @@ export class LikesService {
     if (existingLike) {
       throw new ConflictException('User already liked this comment');
     }
-
-    // Tạo like mới
+    // Tạo like mới cho comment (không set post field)
     const newLike = new this.likeModel({
       comment: commentId,
       user: userId,
-      likeType: 'comment',
+      likeType: 'comment' as const,
       likedAt: new Date()
     });
 

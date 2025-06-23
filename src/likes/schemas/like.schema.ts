@@ -36,24 +36,14 @@ export const LikeSchema = SchemaFactory.createForClass(Like);
 // Ensure all old fields are not included by explicitly setting schema options
 LikeSchema.set('strict', true);
 
-// Index riêng biệt cho post và comment để tránh conflict
-// Index cho post likes
+// Compound unique index for post, comment, user, and likeType
+// This prevents duplicate likes for the same post/comment by the same user
 LikeSchema.index(
-  { post: 1, user: 1 }, 
+  { post: 1, comment: 1, user: 1, likeType: 1 }, 
   { 
     unique: true, 
     sparse: true,
-    name: 'post_user_unique'
-  }
-);
-
-// Index cho comment likes  
-LikeSchema.index(
-  { comment: 1, user: 1 }, 
-  { 
-    unique: true, 
-    sparse: true,
-    name: 'comment_user_unique'
+    name: 'like_unique_constraint'
   }
 );
 
