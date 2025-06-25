@@ -350,7 +350,7 @@ export class AdminService {
           _id: '$location.placeName',
           postCount: { $sum: 1 },
           coordinates: { $first: '$location.coordinates' },
-          totalLikes: { $sum: { $size: '$likes' } },
+          totalLikes: { $sum: '$likeCount' },
           userIds: { $addToSet: '$user' },
           lastActivity: { $max: '$createdAt' }
         }
@@ -367,9 +367,7 @@ export class AdminService {
         $limit: 1
       }
     ];    const result = await this.postModel.aggregate(pipeline as any);
-    const location = result[0];
-
-    if (!location) {
+    const location = result[0];    if (!location) {
       return {
         locationName: 'No data',
         coordinates: [0, 0],
@@ -440,11 +438,12 @@ export class AdminService {
           _id: '$location.placeName',
           postCount: { $sum: 1 },
           coordinates: { $first: '$location.coordinates' },
-          totalLikes: { $sum: { $size: '$likes' } },
+          totalLikes: { $sum: '$likeCount' },
           userIds: { $addToSet: '$user' },
           lastActivity: { $max: '$createdAt' }
         }
-      },      {
+      },
+      {
         $addFields: {
           userCount: { $size: '$userIds' },
           averageLikes: { 
@@ -471,7 +470,8 @@ export class AdminService {
       }
     ];
 
-    const results = await this.postModel.aggregate(pipeline as any);      return results.map(location => ({
+    const results = await this.postModel.aggregate(pipeline as any);
+    return results.map(location => ({
       locationName: location._id || 'Unknown Location',
       coordinates: Array.isArray(location.coordinates) ? location.coordinates : [0, 0],
       postCount: location.postCount || 0,
@@ -521,7 +521,7 @@ export class AdminService {
           userAvatar: { $arrayElemAt: ['$user.avatar', 0] },
           imageUrl: '$imageUrl',
           caption: '$caption',
-          likes: { $size: '$likes' },
+          likes: '$likeCount',
           commentCount: { $literal: 0 }, // Use $literal to set a value, not exclude field
           createdAt: '$createdAt'
         }
@@ -563,7 +563,7 @@ export class AdminService {
             lng: { $round: [{ $arrayElemAt: ['$location.coordinates', 0] }, 2] }
           },
           postCount: { $sum: 1 },
-          weight: { $sum: { $size: '$likes' } },
+          weight: { $sum: '$likeCount' },
           locationName: { $first: '$location.placeName' }
         }
       },
@@ -625,7 +625,6 @@ export class AdminService {
           totalPosts: '$totalPosts'        }
       },      { $sort: { date: 1 } }
     ];
-
     return await this.postModel.aggregate(pipeline as any);
   }
 
@@ -644,23 +643,30 @@ export class AdminService {
       {
         $group: {
           _id: '$location.placeName',
-          count: { $sum: 1 }
-        }      },      {
+          count: { $sum: 1 },
+          coordinates: { $first: '$location.coordinates' }
+        }
+      },
+      {
         $sort: { count: -1 }
-      },      { $limit: 20 }
+      },
+      { $limit: 10 }
     ];
 
     const results = await this.postModel.aggregate(pipeline as any);
     const totalPosts = results.reduce((sum, item) => sum + item.count, 0);
 
     return results.map(item => ({
-      region: item._id,
+      region: item._id || 'Unknown',
       count: item.count,
-      percentage: parseFloat(((item.count / totalPosts) * 100).toFixed(1))
+      percentage: parseFloat(((item.count / totalPosts) * 100).toFixed(1)),
+      coordinates: item.coordinates || [0, 0]
     }));
-  }  /**
+  }
+  /**
    * Admin delete post method
-   */  async adminDeletePost(postId: string): Promise<void> {
+   */
+  async adminDeletePost(postId: string): Promise<void> {
     console.log(`🗑️ AdminService: Starting hard delete post for ID: ${postId}`);
     
     const post = await this.postModel.findById(postId);
