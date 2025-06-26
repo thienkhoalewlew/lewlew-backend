@@ -82,12 +82,23 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // Gửi thông báo đến một người dùng cụ thể
   sendNotificationToUser(userId: string, notification: any): void {
+    this.logger.log(`🔍 Attempting to send notification to user: ${userId}`);
+    this.logger.log(`📋 Connected users: ${Array.from(this.userSocketMap.keys()).join(', ')}`);
+    
     const userSocket = this.userSocketMap.get(userId);
     if (userSocket && userSocket.connected) {
-      this.logger.log(`Send notifications to users: ${userId}`);
+      this.logger.log(`✅ Sending notification to connected user: ${userId}`);
+      this.logger.log(`📧 Notification data:`, JSON.stringify({
+        id: notification._id,
+        type: notification.type,
+        message: notification.message,
+        recipient: notification.recipient
+      }));
       userSocket.emit('notification', notification);
     } else {
-      this.logger.log(`User is not connected: ${userId}`);
+      this.logger.warn(`❌ User not connected or socket not found: ${userId}`);
+      this.logger.log(`🔌 User socket exists: ${!!userSocket}`);
+      this.logger.log(`🟢 Socket connected: ${userSocket?.connected || false}`);
     }
   }
 }

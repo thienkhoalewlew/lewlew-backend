@@ -4,7 +4,9 @@ import { ReportReason } from "../reports/schemas/report.schema";
 
 @Injectable()
 export class NotificationHelperService {
-    constructor(private readonly notificationService: NotificationsService){}    async createFriendRequestNotification(senderId: string, recipientId: string): Promise<void> {
+    constructor(private readonly notificationService: NotificationsService) {}
+
+    async createFriendRequestNotification(senderId: string, recipientId: string): Promise<void> {
         await this.notificationService.createNotification({
             recipientId,
             senderId,
@@ -91,7 +93,8 @@ export class NotificationHelperService {
             postId,
             commentId,
         });
-    }async createPostRemovedNotification(
+    }
+    async createPostRemovedNotification(
         recipientId: string,
         postId: string,
         reason: string
@@ -106,7 +109,8 @@ export class NotificationHelperService {
     }
     /**
      * Thông báo cho người report khi report được chấp nhận (post bị xóa)
-     */    async createReportApprovedNotification(
+     */
+    async createReportApprovedNotification(
         reporterId: string,
         postId: string,
         reportReason: ReportReason | string

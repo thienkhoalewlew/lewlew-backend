@@ -11,8 +11,8 @@ export class NotificationsService {
     constructor(
         @InjectModel(Notification.name) private notificationModel: Model<NotificationDocument>,
         private readonly socketGateway: SocketGateway,  
-    ) {}    async createNotification(dto: CreateNotificationDto): Promise<NotificationDocument> {
-      // Tạo notification với đúng cấu trúc
+    ) {}
+    async createNotification(dto: CreateNotificationDto): Promise<NotificationDocument> {
       const notification = new this.notificationModel({
           recipient: dto.recipientId,
           sender: dto.senderId,
